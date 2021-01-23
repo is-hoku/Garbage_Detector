@@ -19,6 +19,8 @@ from yolo3.utils import letterbox_image
 import os
 from keras.utils import multi_gpu_model
 
+from realsensecv import RealsenseCapture
+
 #packages for ROS Publisher
 import rospy
 from std_msgs.msg import Int32MultiArray
@@ -265,26 +267,31 @@ def detect_video(yolo, video_path, output_path=""):
     #Start ROS node
     pub = start_node()
 
-    vid = cv2.VideoCapture(video_path)
-    if not vid.isOpened():
-        raise IOError("Couldn't open webcam or video")
-    video_FourCC    = int(vid.get(cv2.CAP_PROP_FOURCC))
+    # vid = cv2.VideoCapture(video_path)
+    vid = RealsenseCapture()
+    vid.start()
+    # if not vid.isOpened():
+    #     raise IOError("Couldn't open webcam or video")
+    # video_FourCC    = int(vid.get(cv2.CAP_PROP_FOURCC))
     # vid.set(cv2.CAP_PROP_FPS, 10)
-    video_fps       = vid.get(cv2.CAP_PROP_FPS)
-    video_size      = (int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                        int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-    print(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-    print(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    isOutput = True if output_path != "" else False
-    if isOutput:
-        print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
-        out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
+
+    # video_fps       = vid.get(cv2.CAP_PROP_FPS)
+    # video_size      = (int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
+    #                     int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+    # print(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    # print(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    # isOutput = True if output_path != "" else False
+    # if isOutput:
+    #     print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
+    #     out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
     accum_time = 0
     curr_fps = 0
     fps = "FPS: ??"
     prev_time = timer()
     while True:
-        ret, frame = vid.read()
+        ret, frames, _ = vid.read()
+        frame = frames[0]
+        depth_frame = frames[1]
         image = Image.fromarray(frame)
         # print(image.size)
         image, bottle, right, left, bottom, top = yolo.detect_image(image, pub)
@@ -306,8 +313,8 @@ def detect_video(yolo, video_path, output_path=""):
         # cv2.namedWindow("result", cv2.WINDOW_NORMAL)
         cv2.imshow("result", result)
 
-        if isOutput:
-            out.write(result)
+        # if isOutput:
+        #     out.write(result)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
@@ -338,7 +345,10 @@ def detect_video(yolo, video_path, output_path=""):
 
         start = timer()
         while(1):
-            ret ,frame = vid.read()
+            ret ,frames, depth = vid.read()
+            frame = frames[0]
+            depth_frame = frames[1]
+            # cv2.imshow('depth', depth_frame)
             if ret == True:
                 hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
                 dst = cv2.calcBackProject([hsv],[0],roi_hist,[0,180],1)
@@ -353,9 +363,26 @@ def detect_video(yolo, video_path, output_path=""):
                 # pts = np.int0(pts)
                 # img2 = cv2.polylines(frame,[pts],True, 255,2)
                 img2 = cv2.rectangle(frame, (x,y), (x+w,y+h), 255,2)
-                cv2.imshow('img2',img2)
-                pts = [x, y, x+w, y+h]
-                print(pts)
+                cv2.imshow('Tracking',img2)
+                # pts = [x, y, x+w, y+h]
+                # print(pts)
+
+                # focus length = 1.93mm, distance between depth cameras = about 5cm, a pixel size = 3um
+                # https://www.intelrealsense.com/wp-content/uploads/2020/06/Intel-RealSense-D400-Series-Datasheet-June-2020.pdf
+                worldz = depth.get_distance(x+w//2, y+h//2)
+                print('worldz', worldz)
+                if worldz == 0:
+                    pts = [0, 0, 0]
+                else:
+                    u_ud = (0.05*0.00193)/(0.003*worldz)
+                    print('u_ud', u_ud)
+                    # print('x-320', x-320, 'y-240', y-240)
+                    print('x, y =', x+w//2, y+h//2)
+                    worldx = 0.05*(x+w//2 - (img2.shape[1]//2))/u_ud
+                    worldy = 0.05*((img2.shape[0]//2) - (y+h//2))/u_ud
+                    print('x,y,z = ', worldx, worldy, worldz)
+                    pts = [int(worldx), int(worldy), int(worldz)]
+
                 if (x<=5 or x+w>=635)or(y<=5 or y+h>=475):
                     print("追跡が外れた！\n")
                     break
