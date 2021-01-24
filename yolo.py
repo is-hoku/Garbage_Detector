@@ -374,10 +374,11 @@ def detect_video(yolo, video_path, output_path=""):
                 if worldz == 0:
                     pts = [0, 0, 0]
                 else:
-                    u_ud = (0.05*0.00193)/(0.003*worldz)
+                    # u_ud = (0.05*0.00188)/(0.003*worldz)
+                    u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz)
                     print('u_ud', u_ud)
                     # print('x-320', x-320, 'y-240', y-240)
-                    print('x, y =', x+w//2, y+h//2)
+                    print('x, y =', x+w//2 - 640, 480 - (y+h//2))
                     worldx = 0.05*(x+w//2 - (img2.shape[1]//2))/u_ud
                     worldy = 0.05*((img2.shape[0]//2) - (y+h//2))/u_ud
                     print('x,y,z = ', worldx, worldy, worldz)
