@@ -28,10 +28,17 @@ from cv_bridge import CvBridge
 
 
 def start_node():
-    rospy.init_node('bottle_location')
-    rospy.loginfo('bottle_location node started')
+    rospy.init_node('bottle_place')
+    rospy.loginfo('bottle_place node started')
     pub = rospy.Publisher("bottle_points", Int32MultiArray)
     return pub
+
+def callback(data):
+    rospy.loginfo(rospy.get_caller_id()+"I heard %s",data.data)
+
+def nearest_index(array, point):
+
+    return 0
 
 
 class YOLO(object):
@@ -119,7 +126,8 @@ class YOLO(object):
         # start = timer()
         # bottle = [-1, -1]
         bottle = False
-        ro,lo,bo,to = 0,0,0,0
+        person = False
+        ro,lo,bo,to,ro2,lo2,bo2,to2 = 0,0,0,0,0,0,0,0
 
         if self.model_image_size != (None, None):
             assert self.model_image_size[0]%32 == 0, 'Multiples of 32 required'
@@ -149,6 +157,8 @@ class YOLO(object):
                     size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
         thickness = (image.size[0] + image.size[1]) // 300
 
+        human_list = []
+        bottle_flag = 0
         for i, c in reversed(list(enumerate(out_classes))):
             predicted_class = self.class_names[c]
             box = out_boxes[i]
@@ -164,13 +174,28 @@ class YOLO(object):
             bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
             print(label, (left, top), (right, bottom))
-            if (predicted_class=="bottle") & (score >= 0.7):
+            if (predicted_class=="bottle") & (score >= 0.6):
                 # bottle = [right-left, bottom-top]
                 bottle = True
                 ro = right
                 lo = left
                 bo = bottom
                 to = top
+                bottle_flag+=1
+            #place of human who is holding a bottle
+            elif (predicted_class=="person") & (bottle_flag):
+                person = True
+                human_list.append([right, left, bottom, top])
+                near = 640000
+                for i in human_list:
+                    print("i = "+str(i))
+                    distance = ((i[0]-i[1])**2-(ro-lo)**2)+((i[2]-i[3])**2-(bo-to)**2)
+                    print("distance = "+str(distance))
+                    if near>distance:
+                        near = distance
+                        ro2, lo2, bo2, to2 = i[0], i[1], i[2], i[3]
+                        print("ro2, lo2, bo2, to2 = ", str(ro2), str(lo2), str(bo2), str(to2))
+
 
 
 
@@ -257,7 +282,7 @@ class YOLO(object):
 
         # end = timer()
         # print(end - start)
-        return image, bottle, ro, lo, bo, to
+        return image, bottle, person, ro, lo, bo, to, ro2, lo2, bo2, to2
 
     def close_session(self):
         self.sess.close()
@@ -294,7 +319,7 @@ def detect_video(yolo, video_path, output_path=""):
         depth_frame = frames[1]
         image = Image.fromarray(frame)
         # print(image.size)
-        image, bottle, right, left, bottom, top = yolo.detect_image(image, pub)
+        image, bottle, person, right, left, bottom, top, right2, left2, bottom2, top2 = yolo.detect_image(image, pub)
 
 
 
@@ -320,7 +345,7 @@ def detect_video(yolo, video_path, output_path=""):
 
 
 
-        if bottle==False:
+        if (bottle==False) or (person==False):
             continue
 
 
@@ -333,6 +358,10 @@ def detect_video(yolo, video_path, output_path=""):
         track_window = (left, top, right-left, bottom-top) # x, y, w, h / c, r, w, h
         print(left, top, right-left, bottom-top)
 
+        r2,h2,ci2,w2 = top2, bottom2-top2, left2, right2-left2  # simply hardcoded the values r, h, c, w
+        track_window2 = (left2, top2, right2-left2, bottom2-top2) # x, y, w, h / c, r, w, h
+        print(left2, top2, right2-left2, bottom2-top2)
+
         # set up the ROI for tracking
         roi = frame[r:r+h, ci:ci+w]
         hsv_roi =  cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
@@ -344,25 +373,34 @@ def detect_video(yolo, video_path, output_path=""):
         term_crit = ( cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 1 )
 
         start = timer()
+        track_thing = 0 #bottle
         while(1):
             ret ,frames, depth = vid.read()
             frame = frames[0]
             depth_frame = frames[1]
+            # cv2.putText(frame, text=str(vid.get(cv2.CAP_PROP_FPS)), org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+            #             fontScale=0.50, color=(255, 0, 0), thickness=2)
             # cv2.imshow('depth', depth_frame)
             if ret == True:
                 hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
                 dst = cv2.calcBackProject([hsv],[0],roi_hist,[0,180],1)
 
                 # apply meanshift to get the new location
+                print(track_window2)
                 ret, track_window = cv2.meanShift(dst, track_window, term_crit)
                 x,y,w,h = track_window
-                x,y,w,h = x, y, w, h
+                # x,y,w,h = x, y, w, h
+                ret2, track_window2 = cv2.meanShift(dst, track_window2, term_crit)
+                x2,y2,w2,h2 = track_window2
 
                 # Draw it on image
                 # pts = cv2.boxPoints(ret)
                 # pts = np.int0(pts)
                 # img2 = cv2.polylines(frame,[pts],True, 255,2)
                 img2 = cv2.rectangle(frame, (x,y), (x+w,y+h), 255,2)
+                img2 = cv2.rectangle(img2, (x2,y2), (x2+w2,y2+h2), 255,2)
+                # cv2.imwrite('bottle.jpg', img2)
+                # cv2.imwrite('bottle2.jpg', frame[y:y+h, x:x+w])
                 cv2.imshow('Tracking',img2)
                 # pts = [x, y, x+w, y+h]
                 # print(pts)
@@ -370,26 +408,49 @@ def detect_video(yolo, video_path, output_path=""):
                 # focus length = 1.93mm, distance between depth cameras = about 5cm, a pixel size = 3um
                 # https://www.intelrealsense.com/wp-content/uploads/2020/06/Intel-RealSense-D400-Series-Datasheet-June-2020.pdf
                 worldz = depth.get_distance(x+w//2, y+h//2)
+                worldz2 = depth.get_distance(x2+w2//2, y2+h2//2)
                 print('worldz', worldz)
-                if worldz == 0:
+                print('worldz2', worldz2)
+                if (worldz == 0) or (worldz2 == 0):
                     pts = [0, 0, 0]
+                    pts2 = [0, 0, 0]
                 else:
-                    # u_ud = (0.05*0.00188)/(0.003*worldz)
-                    u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz)
-                    print('u_ud', u_ud)
-                    # print('x-320', x-320, 'y-240', y-240)
-                    print('x, y =', x+w//2 - 640, 480 - (y+h//2))
-                    worldx = 0.05*(x+w//2 - (img2.shape[1]//2))/u_ud
-                    worldy = 0.05*((img2.shape[0]//2) - (y+h//2))/u_ud
-                    print('x,y,z = ', worldx, worldy, worldz)
-                    pts = [int(worldx), int(worldy), int(worldz)]
+                    if (track_thing==0):
+                        #human Tracking
+                        u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz)
+                        print('u_ud', u_ud)
+                        # print('x-320', x-320, 'y-240', y-240)
+                        print('x, y =', x+w//2 - 640, 480 - (y+h//2))
+                        worldx = 0.05*(x+w//2 - (img2.shape[1]//2))/u_ud
+                        worldy = 0.05*((img2.shape[0]//2) - (y+h))/u_ud
+                        print('x,y,z = ', worldx, worldy, worldz)
+                        pts = [int(worldx), int(worldy), int(worldz)]
 
-                if (x<=5 or x+w>=635)or(y<=5 or y+h>=475):
+                    else:
+                        #bottle Tracking
+                        u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz2)
+                        print('u_ud', u_ud)
+                        # print('x-320', x-320, 'y-240', y-240)
+                        print('x, y =', x2+w2//2 - 640, 480 - (y2+h2//2))
+                        worldx2 = 0.05*(x2+w2//2 - (img2.shape[1]//2))/u_ud
+                        worldy2 = 0.05*((img2.shape[0]//2) - (y2+h2))/u_ud
+                        print('x2,y2,z2 = ', worldx2, worldy2, worldz2)
+                        pts2 = [int(worldx2), int(worldy2), int(worldz2)]
+
+                if ((x<=5 or x+w>=635)or(y<=5 or y+h>=475)) and (not track_thing):
                     print("追跡が外れた！\n")
                     break
+                elif (y<=(-0.55) and not(track_thing)):
+                    print("ポイ捨てした！\n")
+                    track_thing = 1 #human
+                # elif ()
                 # cv2.waitKey(0)
                 # time.sleep(3)
-                bottle = Int32MultiArray(data=pts)
+                # bottle = Int32MultiArray(data=pts)
+                if track_thing==0:
+                    bottle = Int32MultiArray(data=pts)
+                else:
+                    bottle = Int32MultiArray(data=pts2)
                 pub.publish(bottle)
 
 
@@ -405,6 +466,8 @@ def detect_video(yolo, video_path, output_path=""):
             print(end - start)
             if (end-start)>=15:
                 break
+        cv2.imwrite('bottle.jpg', img2)
+        cv2.imwrite('bottle2.jpg', frame[y:y+h, x:x+w])
 
 
 
