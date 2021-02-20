@@ -24,21 +24,18 @@ from realsensecv import RealsenseCapture
 #packages for ROS Publisher
 import rospy
 from std_msgs.msg import Int32MultiArray
+from geometry_msgs.msg import Point
 from cv_bridge import CvBridge
 
 
 def start_node():
     rospy.init_node('bottle_place')
     rospy.loginfo('bottle_place node started')
-    pub = rospy.Publisher("bottle_points", Int32MultiArray)
+    pub = rospy.Publisher("bottle_points", Point)
     return pub
 
 def callback(data):
     rospy.loginfo(rospy.get_caller_id()+"I heard %s",data.data)
-
-def nearest_index(array, point):
-
-    return 0
 
 
 class YOLO(object):
@@ -188,6 +185,7 @@ class YOLO(object):
                 human_list.append([right, left, bottom, top])
                 near = 640000
                 for i in human_list:
+                    print("human_list = ", human_list)
                     print("i = "+str(i))
                     distance = ((i[0]-i[1])**2-(ro-lo)**2)+((i[2]-i[3])**2-(bo-to)**2)
                     print("distance = "+str(distance))
@@ -361,6 +359,8 @@ def detect_video(yolo, video_path, output_path=""):
         r2,h2,ci2,w2 = top2, bottom2-top2, left2, right2-left2  # simply hardcoded the values r, h, c, w
         track_window2 = (left2, top2, right2-left2, bottom2-top2) # x, y, w, h / c, r, w, h
         print(left2, top2, right2-left2, bottom2-top2)
+        cv2.imwrite('bottledetect.jpg', frame[r:r+h, ci:ci+w])
+        cv2.imwrite('persondetect.jpg', frame[r2:r2+h2, ci2:ci2+w2])
 
         # set up the ROI for tracking
         roi = frame[r:r+h, ci:ci+w]
@@ -374,6 +374,8 @@ def detect_video(yolo, video_path, output_path=""):
 
         start = timer()
         track_thing = 0 #bottle
+        pts = Point()
+        pts2 = Point()
         while(1):
             ret ,frames, depth = vid.read()
             frame = frames[0]
@@ -412,8 +414,10 @@ def detect_video(yolo, video_path, output_path=""):
                 print('worldz', worldz)
                 print('worldz2', worldz2)
                 if (worldz == 0) or (worldz2 == 0):
-                    pts = [0, 0, 0]
-                    pts2 = [0, 0, 0]
+                    # pts = Point()
+                    pts.x, pts.y, pts.z = 0.0, 0.0, 0.0
+                    # pts2 = Point()
+                    pts2.x, pts2.y, pts2.z = 0.0, 0.0, 0.0
                 else:
                     if (track_thing==0):
                         #human Tracking
@@ -424,7 +428,7 @@ def detect_video(yolo, video_path, output_path=""):
                         worldx = 0.05*(x+w//2 - (img2.shape[1]//2))/u_ud
                         worldy = 0.05*((img2.shape[0]//2) - (y+h))/u_ud
                         print('x,y,z = ', worldx, worldy, worldz)
-                        pts = [int(worldx), int(worldy), int(worldz)]
+                        pts.x, pts.y, pts.z = float(worldx), float(worldy), float(worldz)
 
                     else:
                         #bottle Tracking
@@ -435,7 +439,7 @@ def detect_video(yolo, video_path, output_path=""):
                         worldx2 = 0.05*(x2+w2//2 - (img2.shape[1]//2))/u_ud
                         worldy2 = 0.05*((img2.shape[0]//2) - (y2+h2))/u_ud
                         print('x2,y2,z2 = ', worldx2, worldy2, worldz2)
-                        pts2 = [int(worldx2), int(worldy2), int(worldz2)]
+                        pts2.x, pts2.y, pts.z = float(worldx2), float(worldy2), float(worldz2)
 
                 if ((x<=5 or x+w>=635)or(y<=5 or y+h>=475)) and (not track_thing):
                     print("追跡が外れた！\n")
@@ -448,9 +452,9 @@ def detect_video(yolo, video_path, output_path=""):
                 # time.sleep(3)
                 # bottle = Int32MultiArray(data=pts)
                 if track_thing==0:
-                    bottle = Int32MultiArray(data=pts)
+                    bottle = pts
                 else:
-                    bottle = Int32MultiArray(data=pts2)
+                    bottle = pts2
                 pub.publish(bottle)
 
 
