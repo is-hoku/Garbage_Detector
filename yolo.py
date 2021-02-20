@@ -23,7 +23,8 @@ from realsensecv import RealsenseCapture
 
 #packages for ROS Publisher
 import rospy
-from std_msgs.msg import Int32MultiArray
+# from std_msgs.msg import Int32MultiArray
+from std_msgs.msg import Int8
 from geometry_msgs.msg import Point
 from cv_bridge import CvBridge
 
@@ -32,7 +33,8 @@ def start_node():
     rospy.init_node('bottle_place')
     rospy.loginfo('bottle_place node started')
     pub = rospy.Publisher("bottle_points", Point)
-    return pub
+    pub_flag = rospy.Publisher("bottle_or_person", Int8)
+    return pub, pub_flag
 
 def callback(data):
     rospy.loginfo(rospy.get_caller_id()+"I heard %s",data.data)
@@ -288,7 +290,7 @@ class YOLO(object):
 def detect_video(yolo, video_path, output_path=""):
     # import cv2
     #Start ROS node
-    pub = start_node()
+    pub, pub_flag = start_node()
 
     # vid = cv2.VideoCapture(video_path)
     vid = RealsenseCapture()
@@ -409,8 +411,32 @@ def detect_video(yolo, video_path, output_path=""):
 
                 # focus length = 1.93mm, distance between depth cameras = about 5cm, a pixel size = 3um
                 # https://www.intelrealsense.com/wp-content/uploads/2020/06/Intel-RealSense-D400-Series-Datasheet-June-2020.pdf
-                worldz = depth.get_distance(x+w//2, y+h//2)
-                worldz2 = depth.get_distance(x2+w2//2, y2+h2//2)
+                total, cnt = 0, 0
+                for i in range(3):
+                    for j in range(3):
+                        dep = depth.get_distance(i-1+x+w//2, j-1+y+h//2)
+                        if (dep)!=0:
+                            total += dep
+                            cnt += 1
+                if cnt!=0:
+                    worldz = total/cnt
+                else:
+                    worldz = 0
+
+                total2, cnt2 = 0, 0
+                for i in range(3):
+                    for j in range(3):
+                        dep2 = depth.get_distance(i-1+x2+w2//2, j-1+y2+h2//2)
+                        if dep2!=0:
+                            total2 += dep2
+                            cnt2 += 1
+                if cnt2!=0:
+                    worldz2 = total2/cnt2
+                else:
+                    worldz2 = 0
+
+                # worldz = depth.get_distance(x+w//2, y+h//2)
+                # worldz2 = depth.get_distance(x2+w2//2, y2+h2//2)
                 print('worldz', worldz)
                 print('worldz2', worldz2)
                 if (worldz == 0) or (worldz2 == 0):
@@ -452,10 +478,13 @@ def detect_video(yolo, video_path, output_path=""):
                 # time.sleep(3)
                 # bottle = Int32MultiArray(data=pts)
                 if track_thing==0:
-                    bottle = pts
+                    tracking_point = pts
+                    flag = 0 #bottle
                 else:
-                    bottle = pts2
-                pub.publish(bottle)
+                    tracking_point = pts2
+                    flag = 1 #person
+                pub.publish(tracking_point)
+                pub_flag.publish(flag)
 
 
                 k = cv2.waitKey(60) & 0xff
