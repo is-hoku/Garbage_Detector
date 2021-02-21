@@ -7,7 +7,7 @@ class RealsenseCapture:
     def __init__(self):
         self.WIDTH = 640
         self.HEGIHT = 480
-        self.FPS = 30
+        self.FPS =15
         # Configure depth and color streams
         self.config = rs.config()
         self.config.enable_stream(rs.stream.color, self.WIDTH, self.HEGIHT, rs.format.bgr8, self.FPS)
@@ -19,6 +19,7 @@ class RealsenseCapture:
         # profile = self.pipeline.start(self.config)
         self.pipeline.start(self.config)
         print('pipline start')
+        print("\n---------------------\nFPS:", self.FPS, "\n---------------------")
         # https://dev.intelrealsense.com/docs/projection-in-intel-realsense-sdk-20
         # intr = profile.get_stream(rs.stream.color).as_video_stream_profile().get_intrinsics()
         # print(intr.width, intr.height, intr.fx, intr.fy, intr.ppx, intr.ppy)
