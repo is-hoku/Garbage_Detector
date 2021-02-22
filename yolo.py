@@ -19,25 +19,26 @@ from yolo3.utils import letterbox_image
 import os
 from keras.utils import multi_gpu_model
 
-from realsensecv import RealsenseCapture
+# from realsensecv import RealsenseCapture
 
 #packages for ROS Publisher
 import rospy
 # from std_msgs.msg import Int32MultiArray
 from std_msgs.msg import Int8
 from geometry_msgs.msg import Point
+# from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
 
 def start_node():
-    rospy.init_node('bottle_place')
+    # rospy.init_node('bottle_place')
     rospy.loginfo('bottle_place node started')
     pub = rospy.Publisher("bottle_points", Point)
     pub_flag = rospy.Publisher("bottle_or_person", Int8)
     return pub, pub_flag
 
-def callback(data):
-    rospy.loginfo(rospy.get_caller_id()+"I heard %s",data.data)
+# def call_back(ros_data):
+#     np_arr = np.fromstring(ros_data.data, np.uint8)
 
 
 class YOLO(object):
@@ -122,6 +123,7 @@ class YOLO(object):
         return boxes, scores, classes
 
     def detect_image(self, image, pub):
+        start = timer()
         bottle = False
         person = False
         ro,lo,bo,to,ro2,lo2,bo2,to2 = 0,0,0,0,0,0,0,0
@@ -129,13 +131,16 @@ class YOLO(object):
         if self.model_image_size != (None, None):
             assert self.model_image_size[0]%32 == 0, 'Multiples of 32 required'
             assert self.model_image_size[1]%32 == 0, 'Multiples of 32 required'
+            # print(image)
+            # print(image.shape)
+            # print(type(image))
             boxed_image = letterbox_image(image, tuple(reversed(self.model_image_size)))
         else:
             new_image_size = (image.width - (image.width % 32),
                               image.height - (image.height % 32))
             boxed_image = letterbox_image(image, new_image_size)
-        image_data = np.array(boxed_image, dtype='float32')
 
+        image_data = np.array(boxed_image, dtype='float32')
         image_data /= 255.
         image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
 
@@ -213,20 +218,30 @@ class YOLO(object):
                     print("ro2, lo2, bo2, to2 = ", str(ro2), str(lo2), str(bo2), str(to2))
         print("Tracked Person = ", ro2, lo2, bo2, to2)
 
-        # end = timer()
-        # print(end - start)
+        end = timer()
+        print("一回の検出にかかる時間", end - start)
         return image, bottle, person, ro, lo, bo, to, ro2, lo2, bo2, to2
 
     def close_session(self):
         self.sess.close()
 
-def detect_video(yolo, video_path, output_path=""):
+# def detect_video(yolo, frames, video_path, output_path=""):
+def detect_video(yolo, frames):
     #Start ROS node
     pub, pub_flag = start_node()
 
     # vid = cv2.VideoCapture(video_path)
-    vid = RealsenseCapture()
-    vid.start()
+
+
+
+    # vid = RealsenseCapture()
+    # vid.start()
+
+
+
+
+
+
     # if not vid.isOpened():
     #     raise IOError("Couldn't open webcam or video")
     # video_FourCC    = int(vid.get(cv2.CAP_PROP_FOURCC))
@@ -245,15 +260,29 @@ def detect_video(yolo, video_path, output_path=""):
     curr_fps = 0
     fps = "FPS: ??"
     prev_time = timer()
+
     while True:
-        ret, frames, _ = vid.read()
+        # ret, frames, _ = vid.read()
+        # frame = frames[0]
+        # depth_frame = frames[1]
+
+        # CHECK!!!!!!!
+        # vid.read()
+        # frame = vid.frame
+        # print(frame)
+        # if type(frame) is int:
+        #     print('this is not array')
+        #     continue
+        # print("frame", vid.frame)
+        # print("frame.size", frame.size)
+        # print("type(frame)", type(frame))
+
+        ret = True
         frame = frames[0]
         depth_frame = frames[1]
         image = Image.fromarray(frame)
-        # print(image.size)
+
         image, bottle, person, right, left, bottom, top, right2, left2, bottom2, top2 = yolo.detect_image(image, pub)
-
-
 
         result = np.asarray(image)
         curr_time = timer()
@@ -282,7 +311,7 @@ def detect_video(yolo, video_path, output_path=""):
 
 
 
-# ------------------------------MeanSift------------------------------------
+    # ------------------------------Tracking-----------------------------------
         # tracker_types = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'GOTURN', 'MOSSE', 'CSRT']
         # tracker_type = tracker_types[7]
         tracker = cv2.TrackerKCF_create()
@@ -327,10 +356,25 @@ def detect_video(yolo, video_path, output_path=""):
         pts = Point()
         pts2 = Point()
         untrack = 0
+
         while(1):
-            ret ,frames, depth = vid.read()
+            # ret ,frames, depth = vid.read()
+            # frame = frames[0]
+            # depth_frame = frames[1]
+
+            # vid.read()
+            # frame = vid.frame
+            # if type(frame) is int:
+            #     print('this is not array')
+            #     continue
+            # depth_frame = vid.depth
+            # depth = depth_frame
+
+            ret = True
             frame = frames[0]
+            print("2domeno-frames")
             depth_frame = frames[1]
+            depth = depth_frame
 
             if ret == True:
                 hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -431,9 +475,9 @@ def detect_video(yolo, video_path, output_path=""):
                 pub_flag.publish(flag)
 
 
-                k = cv2.waitKey(60) & 0xff
-                if k == 27:
-                    break
+                # k = cv2.waitKey(60) & 0xff
+                # if k == 27:
+                #     break
             else:
                 break
 
