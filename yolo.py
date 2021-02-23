@@ -19,7 +19,7 @@ from yolo3.utils import letterbox_image
 import os
 from keras.utils import multi_gpu_model
 
-# from realsensecv import RealsenseCapture
+from realsensecv import RealsenseCapture
 
 #packages for ROS Publisher
 import rospy
@@ -31,7 +31,7 @@ from cv_bridge import CvBridge
 
 
 def start_node():
-    # rospy.init_node('bottle_place')
+    rospy.init_node('bottle_place')
     rospy.loginfo('bottle_place node started')
     pub = rospy.Publisher("bottle_points", Point)
     pub_flag = rospy.Publisher("bottle_or_person", Int8)
@@ -226,7 +226,7 @@ class YOLO(object):
         self.sess.close()
 
 # def detect_video(yolo, frames, video_path, output_path=""):
-def detect_video(yolo, frames):
+def detect_video(yolo, video_path):
     #Start ROS node
     pub, pub_flag = start_node()
 
@@ -234,8 +234,8 @@ def detect_video(yolo, frames):
 
 
 
-    # vid = RealsenseCapture()
-    # vid.start()
+    vid = RealsenseCapture()
+    vid.start()
 
 
 
@@ -262,9 +262,9 @@ def detect_video(yolo, frames):
     prev_time = timer()
 
     while True:
-        # ret, frames, _ = vid.read()
-        # frame = frames[0]
-        # depth_frame = frames[1]
+        ret, frames, _ = vid.read()
+        frame = frames[0]
+        depth_frame = frames[1]
 
         # CHECK!!!!!!!
         # vid.read()
@@ -277,9 +277,9 @@ def detect_video(yolo, frames):
         # print("frame.size", frame.size)
         # print("type(frame)", type(frame))
 
-        ret = True
-        frame = frames[0]
-        depth_frame = frames[1]
+        # ret = True
+        # frame = frames[0]
+        # depth_frame = frames[1]
         image = Image.fromarray(frame)
 
         image, bottle, person, right, left, bottom, top, right2, left2, bottom2, top2 = yolo.detect_image(image, pub)
@@ -358,9 +358,9 @@ def detect_video(yolo, frames):
         untrack = 0
 
         while(1):
-            # ret ,frames, depth = vid.read()
-            # frame = frames[0]
-            # depth_frame = frames[1]
+            ret ,frames, depth = vid.read()
+            frame = frames[0]
+            depth_frame = frames[1]
 
             # vid.read()
             # frame = vid.frame
@@ -370,11 +370,11 @@ def detect_video(yolo, frames):
             # depth_frame = vid.depth
             # depth = depth_frame
 
-            ret = True
-            frame = frames[0]
-            print("2domeno-frames")
-            depth_frame = frames[1]
-            depth = depth_frame
+            # ret = True
+            # frame = frames[0]
+            # print("2domeno-frames")
+            # depth_frame = frames[1]
+            # depth = depth_frame
 
             if ret == True:
                 hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -392,7 +392,10 @@ def detect_video(yolo, frames):
 
                 # Draw it on image
                 img2 = cv2.rectangle(frame, (x,y), (x+w,y+h), 255,2)
-                img2 = cv2.rectangle(img2, (x2,y2), (x2+w2,y2+h2), 255,2)
+                if not track_thing:
+                    img2 = cv2.rectangle(img2, (x2,y2), (x2+w2,y2+h2), 255,2)
+                else:
+                    img2 = cv2.rectangle(img2, (x2, y2), (x2+w2, y2+h2),(0, 0, 255), 2)
                 cv2.imshow('Tracking',img2)
 
                 # https://www.intelrealsense.com/wp-content/uploads/2020/06/Intel-RealSense-D400-Series-Datasheet-June-2020.pdf
@@ -455,13 +458,13 @@ def detect_video(yolo, frames):
 
                 print("track_thing = ", track_thing)
 
-                if (track_window==(0, 0, 0, 0)) or (track_window2==(0, 0, 0, 0)):
+                if (track_thing==0 and track_window==(0, 0, 0, 0)) or (track_window2==(0, 0, 0, 0)):
                     untrack += 1
                     print("untrack = ", untrack)
                     if untrack>=50:
                         print("追跡が外れた！\n")
                         break
-                if ((worldy<=-0.5) and (not track_thing)):
+                if ((worldy<=-0.55) and (not track_thing)):
                     print("ポイ捨てした！\n")
                     track_thing = 1 #human
 
@@ -475,9 +478,9 @@ def detect_video(yolo, frames):
                 pub_flag.publish(flag)
 
 
-                # k = cv2.waitKey(60) & 0xff
-                # if k == 27:
-                #     break
+                k = cv2.waitKey(60) & 0xff
+                if k == 27:
+                    break
             else:
                 break
 
