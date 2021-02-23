@@ -39,8 +39,6 @@ class RealsenseCapture:
         frames = self.pipeline.wait_for_frames()
         # separate RGB and Depth image
         self.color_frame = frames.get_color_frame()  # RGB
-        print(self.color_frame)
-        print(type(self.color_frame))
         self.depth_frame = frames.get_depth_frame()  # Depth
 
         if not self.color_frame or not self.depth_frame:
@@ -64,78 +62,82 @@ class RealsenseCapture:
 
 
 # RealSenseのtopicをSubscribeしてOpenCVで処理できるようにする．
-    def _1_init__(self):
-        self.frame = 0
-        self.depth = 0
-        # self.cnt = 0
-        # self.fps = 0.
-        # self.start = 0
-        # self.end = 0
-
-    # def callback(self, msg, flag):
+    # def __init__(self):
+    #     self.frame = 0
+    #     self.depth = 0
+    #     # self.cnt = 0
+    #     # self.fps = 0.
+    #     # self.start = 0
+    #     # self.end = 0
+    #
+    # # def callback(self, msg, flag):
+    # #     try:
+    # #         bridge = CvBridge()
+    # #         if flag == 0:
+    # #             # if self.cnt == 0:
+    # #             #     self.start = timer()
+    # #             print("0")
+    # #             orig = bridge.imgmsg_to_cv2(msg, "bgr8")
+    # #             # print(type(msg))
+    # #             # img = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+    # #             # print(orig)
+    # #             # print(orig.shape)
+    # #             self.frame = orig
+    # #             # cv2.imshow('image', orig)
+    # #             # cv2.waitKey(1)
+    # #         else:
+    # #             # if self.cnt == 10:
+    # #             #     self.end = timer()
+    # #             #     self.fps = self.end - self.start
+    # #             # self.cnt += 1
+    # #
+    # #             print("1")
+    # #             orig = bridge.imgmsg_to_cv2(msg, 'passthrough')
+    # #             # cv2.imshow('image2', orig)
+    # #             # cv2.waitKey(1)
+    # #             self.depth = orig
+    # #     except Exception as err:
+    # #         print(err)
+    #
+    # def callback(self, msg1, msg2):
     #     try:
     #         bridge = CvBridge()
-    #         if flag == 0:
-    #             # if self.cnt == 0:
-    #             #     self.start = timer()
-    #             print("0")
-    #             orig = bridge.imgmsg_to_cv2(msg, "bgr8")
-    #             # print(type(msg))
-    #             # img = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
-    #             # print(orig)
-    #             # print(orig.shape)
-    #             self.frame = orig
-    #             # cv2.imshow('image', orig)
-    #             # cv2.waitKey(1)
-    #         else:
-    #             # if self.cnt == 10:
-    #             #     self.end = timer()
-    #             #     self.fps = self.end - self.start
-    #             # self.cnt += 1
+    #         print("0")
+    #         orig1 = bridge.imgmsg_to_cv2(msg1, "bgr8")
+    #         print("1")
+    #         orig2 = bridge.imgmsg_to_cv2(msg2, 'passthrough')
+    #         frame = [orig1, orig2]
+    #         # cv2.imshow("orig1", orig1)
+    #         # cv2.imshow("orig2", orig2)
+    #         # cv2.waitKey(1)
     #
-    #             print("1")
-    #             orig = bridge.imgmsg_to_cv2(msg, 'passthrough')
-    #             # cv2.imshow('image2', orig)
-    #             # cv2.waitKey(1)
-    #             self.depth = orig
     #     except Exception as err:
     #         print(err)
-
-    def callback_(self, msg1, msg2):
-        try:
-            bridge = CvBridge()
-            print("0")
-            orig1 = bridge.imgmsg_to_cv2(msg1, "bgr8")
-            print("1")
-            orig2 = bridge.imgmsg_to_cv2(msg2, 'passthrough')
-            frame = [orig1, orig2]
-            # cv2.imshow("orig1", orig1)
-            # cv2.imshow("orig2", orig2)
-            # cv2.waitKey(1)
-
-        except Exception as err:
-            print(err)
-
-    def read_(self):
-        rospy.init_node('img_proc')
-        rospy.loginfo('Start to subscribe realsense topic')
-        sub1 = message_filters.Subscriber("/camera/color/image_raw", Image)
-        sub2 = message_filters.Subscriber("/camera/depth/image_rect_raw", Image)
-        # rospy.Subscriber("/camera/color/image_raw", Image, self.callback, callback_args=0)
-        # rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.callback, callback_args=1)
-        fps = 26.77
-        delay = 1/fps*0.5
-        ts = message_filters.ApproximateTimeSynchronizer([sub1,sub2], 10, delay)
-        ts.registerCallback(self.callback)
-
-        rospy.spin()
+    #
+    # def read(self):
+    #     rospy.init_node('img_proc')
+    #     rospy.loginfo('Start to subscribe realsense topic')
+    #     sub1 = message_filters.Subscriber("/camera/color/image_raw", Image)
+    #     sub2 = message_filters.Subscriber("/camera/depth/image_rect_raw", Image)
+    #     # rospy.Subscriber("/camera/color/image_raw", Image, self.callback, callback_args=0)
+    #     # rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.callback, callback_args=1)
+    #     fps = 26.77
+    #     delay = 1/fps*0.5
+    #     ts = message_filters.ApproximateTimeSynchronizer([sub1,sub2], 10, delay)
+    #     ts.registerCallback(self.callback)
+    #
+    #     rospy.spin()
 
 
 # start_node()
-vid = RealsenseCapture()
+
+# vid = RealsenseCapture()
+
 # for i in range(200):
-vid.start()
-vid.read()
+
+# vid.start()
+# vid.read()
+
 # print(vid.fps)
     # print(vid.frame.shape)
     # print(vid.frame)

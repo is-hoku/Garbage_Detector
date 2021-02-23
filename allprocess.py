@@ -30,6 +30,7 @@ from geometry_msgs.msg import Point
 from cv_bridge import CvBridge
 import threading
 import message_filters
+import pyrealsense2 as rs
 
 
 def start_node():
@@ -142,20 +143,17 @@ class YOLO(object):
             new_image_size = (image.width - (image.width % 32),
                               image.height - (image.height % 32))
             boxed_image = letterbox_image(image, new_image_size)
-
         image_data = np.array(boxed_image, dtype='float32')
+
         image_data /= 255.
         image_data = np.expand_dims(image_data, 0)  # Add batch dimension.
-
-        print('image.size[1]', image.size[1])
-        print('image.size[0]', image.size[0])
 
         out_boxes, out_scores, out_classes = self.sess.run(
             [self.boxes, self.scores, self.classes],
             feed_dict={
                 self.yolo_model.input: image_data,
                 self.input_image_shape: [image.size[1], image.size[0]],
-                K.learning_phase(): 0
+                # K.learning_phase(): 0
             })
 
         # print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
@@ -232,6 +230,7 @@ class YOLO(object):
         self.sess.close()
 
 # def detect_video(yolo, frames, video_path, output_path=""):
+
 class RealsenseSubscribe:
     def __init__(self):
         self.frame = 0
@@ -295,11 +294,11 @@ class RealsenseSubscribe:
                 # ret = True
                 frame = self.frames[0]
                 depth_frame = self.frames[1]
+                if (type(frame) is int)or(type(depth_frame) is int):
+                    print("!!!CAUTION!!! type of frame is int")
+                    continue
                 image = Image.fromarray(frame)
-                print("image dainyu----------------------------------------------------------")
-
                 image, bottle, person, right, left, bottom, top, right2, left2, bottom2, top2 = yolo.detect_image(image, pub)
-                print("complete yolo.detect_image")
 
                 result = np.asarray(image)
                 curr_time = timer()
@@ -395,7 +394,6 @@ class RealsenseSubscribe:
 
                     if self.ret:
                         frame = self.frames[0]
-                        print("2domeno-frames")
                         depth_frame = self.frames[1]
                         depth = depth_frame
 
@@ -421,7 +419,10 @@ class RealsenseSubscribe:
                         total, cnt = 0, 0
                         for i in range(3):
                             for j in range(3):
-                                dep = depth.get_distance(i+x+w//2, j+y+h//2)
+                                # dep = depth.get_distance(i+x+w//2, j+y+h//2)
+                                print(depth)
+                                dep = depth[j+y+h//2, i+x+w//2]*0.001
+                                print('dep = ', dep)
                                 if (dep)!=0:
                                     total += dep
                                     cnt += 1
@@ -433,7 +434,8 @@ class RealsenseSubscribe:
                         total2, cnt2 = 0, 0
                         for i in range(3):
                             for j in range(3):
-                                dep2 = depth.get_distance(i+x2+w2//2, j+y2+h2//2)
+                                # dep2 = depth.get_distance(i+x2+w2//2, j+y2+h2//2)
+                                dep2 = depth[j+y2+h2//2, i+x2+w2//2]*0.001
                                 if dep2!=0:
                                     total2 += dep2
                                     cnt2 += 1
@@ -497,8 +499,11 @@ class RealsenseSubscribe:
                         pub_flag.publish(flag)
 
 
-                        # k = cv2.waitKey(60) & 0xff
-                        # if k == 27:
+                        k = cv2.waitKey(60) & 0xff
+                        if k == 27:
+                            break
+
+                        # if type(frame) == type(None):
                         #     break
                     else:
                         break
@@ -509,29 +514,33 @@ class RealsenseSubscribe:
                     #     break
 
 
-            yolo.close_session()
+        yolo.close_session()
 
 
     def callback(self, msg1, msg2):
         try:
-            if (type(msg1) is int) or (type(msg2) is int):
-                print("Waiting Frame!!!!!!!")
+            bridge = CvBridge()
+            # print("0")
+            orig1 = bridge.imgmsg_to_cv2(msg1, "bgr8")
+            orig1 = np.array(orig1, dtype=np.uint8)
+            # print("1")
+            orig2 = bridge.imgmsg_to_cv2(msg2, 'passthrough')
+            # orig2 = msg2
+            # orig2 = np.array(msg2)
+
+            if (type(orig1) is int) or (type(orig2) is int):
+                print("Waiting Frame!")
                 self.ret = False
             else:
                 self.ret = True
-                bridge = CvBridge()
-                # print("0")
-                orig1 = bridge.imgmsg_to_cv2(msg1, "bgr8")
-                # orig1 = np.array(orig1, dtype=np.uint8)
-                # print("1")
-                orig2 = bridge.imgmsg_to_cv2(msg2, 'passthrough')
-                orig2 = np.array(orig2, dtype=np.uint8)
-                self.frames = [orig1, orig2]
-                # print("self.frames is not empty")
-                # cv2.imshow("orig1", orig1)
-                # cv2.imshow("orig2", orig2)
-                # cv2.waitKey(1)
-                # detect_video(YOLO(), frames)
+                orig2 = orig2.reshape([480, 640])
+            self.frames = [orig1, orig2]
+
+            # print("self.frames is not empty")
+            # cv2.imshow("orig1", orig1)
+            # cv2.imshow("orig2", orig2)
+            # cv2.waitKey(1)
+            # detect_video(YOLO(), frames)
 
         except Exception as err:
             print(err)
@@ -541,16 +550,13 @@ class RealsenseSubscribe:
         # rospy.init_node('img_proc')
         rospy.loginfo('Start to subscribe realsense topic')
         sub1 = message_filters.Subscriber("/camera/color/image_raw", Image)
-        print("sub1")
         sub2 = message_filters.Subscriber("/camera/depth/image_rect_raw", Image)
-        print("sub2")
         # rospy.Subscriber("/camera/color/image_raw", Image, self.callback, callback_args=0)
         # rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.callback, callback_args=1)
         fps = 26.77
         delay = 1/fps*0.5
         ts = message_filters.ApproximateTimeSynchronizer([sub1,sub2], 10, delay)
         ts.registerCallback(self.callback)
-        print("ts")
 
         rospy.spin()
 
@@ -561,16 +567,10 @@ if __name__ == '__main__':
     rospy.init_node('bottle_place')
     # detect_video(YOLO(), video_path, output_path)
     vid = RealsenseSubscribe()
-    print("vid start")
     thread1 = threading.Thread(target=vid.read)
-    print("thread1 dainyuu")
-    yolo_camera = YOLO()
-    thread2 = threading.Thread(target=vid.detect_video, args=(yolo_camera, ))
-    print("thread")
+    thread2 = threading.Thread(target=vid.detect_video, args=(YOLO(), ))
     thread1.start()
-    print("thread1")
     thread2.start()
-    print("thread2")
 
     # vid.read()
     # detect_video(YOLO(), video_path)
