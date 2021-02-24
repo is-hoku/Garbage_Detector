@@ -103,7 +103,7 @@ class YOLO(object):
                 num_anchors/len(self.yolo_model.output) * (num_classes + 5), \
                 'Mismatch between model and given anchor and class sizes'
 
-        print('{} model, anchors, and classes loaded.'.format(model_path))
+        # print('{} model, anchors, and classes loaded.'.format(model_path))
 
         # Generate colors for drawing bounding boxes.
         hsv_tuples = [(x / len(self.class_names), 1., 1.)
@@ -212,14 +212,14 @@ class YOLO(object):
             near = 640000
             for i in human_list:
                 # print("human_list = ", human_list)
-                print("i = "+str(i))
+                # print("i = "+str(i))
                 distance = (((i[0]-i[1])//2+i[1])-((ro-lo)//2+lo))**2+(((i[2]-i[3])//2+i[3])-((bo-to)//2+to))**2
-                print("near = "+str(near))
-                print("distance = "+str(distance))
+                # print("near = "+str(near))
+                # print("distance = "+str(distance))
                 if near>distance:
                     near = distance
                     ro2, lo2, bo2, to2 = i[0], i[1], i[2], i[3]
-                    print("ro2, lo2, bo2, to2 = ", str(ro2), str(lo2), str(bo2), str(to2))
+                    # print("ro2, lo2, bo2, to2 = ", str(ro2), str(lo2), str(bo2), str(to2))
         print("Tracked Person = ", ro2, lo2, bo2, to2)
 
         end = timer()
@@ -342,7 +342,7 @@ class RealsenseSubscribe:
                 #     track_window = (ci+5, r+5, w-5, h-5)
                 # else:
                 track_window = (ci, r, w, h)
-                print(left, top, right-left, bottom-top)
+                # print(left, top, right-left, bottom-top)
 
                 r2,h2,ci2,w2 = top2, bottom2-top2, left2, right2-left2  # simply hardcoded the values r, h, c, w
                 # track_window2 = (left2, top2, right2-left2, bottom2-top2) # x, y, w, h / c, r, w, h
@@ -350,7 +350,7 @@ class RealsenseSubscribe:
                 #     track_window2 = (ci2+10, r2+10, w2-10, h2-10)
                 # else:
                 track_window2 = (ci2, r2, w2, h2)
-                print(left2, top2, right2-left2, bottom2-top2)
+                # print(left2, top2, right2-left2, bottom2-top2)
                 cv2.imwrite('bottledetect.jpg', frame[r:r+h, ci:ci+w])
                 cv2.imwrite('persondetect.jpg', frame[r2:r2+h2, ci2:ci2+w2])
 
@@ -412,7 +412,10 @@ class RealsenseSubscribe:
 
                         # Draw it on image
                         img2 = cv2.rectangle(frame, (x,y), (x+w,y+h), 255,2)
-                        img2 = cv2.rectangle(img2, (x2,y2), (x2+w2,y2+h2), 255,2)
+                        if not track_thing:
+                            img2 = cv2.rectangle(img2, (x2,y2), (x2+w2,y2+h2), 255,2)
+                        else:
+                            img2 = cv2.rectangle(img2, (x2, y2), (x2+w2, y2+h2),(0, 0, 255), 2)
                         cv2.imshow('Tracking',img2)
 
                         # https://www.intelrealsense.com/wp-content/uploads/2020/06/Intel-RealSense-D400-Series-Datasheet-June-2020.pdf
@@ -420,9 +423,9 @@ class RealsenseSubscribe:
                         for i in range(3):
                             for j in range(3):
                                 # dep = depth.get_distance(i+x+w//2, j+y+h//2)
-                                print(depth)
+                                # print(depth)
                                 dep = depth[j+y+h//2, i+x+w//2]*0.001
-                                print('dep = ', dep)
+                                # print('dep = ', dep)
                                 if (dep)!=0:
                                     total += dep
                                     cnt += 1
@@ -459,7 +462,7 @@ class RealsenseSubscribe:
                                 #human Tracking
                                 u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz)
                                 print('u_ud', u_ud)
-                                print('x, y =', (x+w//2)-(img2.shape[1]//2), (img2.shape[0]//2)-(y+h//2))
+                                # print('x, y =', (x+w//2)-(img2.shape[1]//2), (img2.shape[0]//2)-(y+h//2))
                                 # 深度カメラとカラーカメラの物理的な距離を考慮した項(-0.3*u_ud)
                                 # これらの座標は物体を見たときの左の深度カメラを基準とする
                                 worldx = 0.05*(x+w//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
@@ -471,7 +474,7 @@ class RealsenseSubscribe:
                                 #bottle Tracking
                                 u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz2)
                                 print('u_ud', u_ud)
-                                print('x, y =', (x2+w2//2)-(img2.shape[1]//2), (img2.shape[0]//2)-(y2+h2//2))
+                                # print('x, y =', (x2+w2//2)-(img2.shape[1]//2), (img2.shape[0]//2)-(y2+h2//2))
                                 worldx2 = 0.05*(x2+w2//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                                 worldy2 = 0.05*((img2.shape[0]//2) - (y2+h2))/u_ud
                                 print('x2,y2,z2 = ', worldx2, worldy2, worldz2)
