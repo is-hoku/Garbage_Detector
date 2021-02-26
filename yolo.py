@@ -12,7 +12,7 @@ import numpy as np
 from keras import backend as K
 from keras.models import load_model
 from keras.layers import Input
-from PIL import Image, ImageFont, ImageDraw
+# from PIL import Image, ImageFont, ImageDraw
 
 from yolo3.model import yolo_eval, yolo_body, tiny_yolo_body
 from yolo3.utils import letterbox_image
@@ -31,17 +31,22 @@ from cv_bridge import CvBridge
 
 
 def start_node():
+    from sensor_msgs.msg import Image
     # rospy.init_node('bottle_place')
     rospy.loginfo('bottle_place node started')
-    pub = rospy.Publisher("bottle_points", Point)
+    pub = rospy.Publisher("real_coordinate", Point)
     pub_flag = rospy.Publisher("bottle_or_person", Int8)
-    return pub, pub_flag
+    pub_track = rospy.Publisher("tracking", Int8)
+    pub_frame1 = rospy.Publisher("yolo_frame", Image)
+    pub_frame2 = rospy.Publisher("tracking_frame", Image)
+    return pub, pub_flag, pub_track, pub_frame1, pub_frame2
 
 # def call_back(ros_data):
 #     np_arr = np.fromstring(ros_data.data, np.uint8)
 
 
 class YOLO(object):
+    from PIL import Image, ImageFont, ImageDraw
     _defaults = {
         "model_path": 'model_data/yolo.h5',
         "anchors_path": 'model_data/yolo_anchors.txt',
@@ -123,6 +128,7 @@ class YOLO(object):
         return boxes, scores, classes
 
     def detect_image(self, image, pub):
+        from PIL import Image, ImageFont, ImageDraw
         start = timer()
         bottle = False
         person = False
@@ -220,10 +226,12 @@ class YOLO(object):
 
 # def detect_video(yolo, frames, video_path, output_path=""):
 def detect_video(yolo, video_path, garbage_in_can):
+    from PIL import Image, ImageFont, ImageDraw
     #Start ROS node
-    pub, pub_flag = start_node()
+    pub, pub_flag, pub_track, pub_frame1, pub_frame2 = start_node()
     vid = RealsenseCapture()
     vid.start()
+    bridge = CvBridge()
 
     accum_time = 0
     curr_fps = 0
@@ -231,6 +239,7 @@ def detect_video(yolo, video_path, garbage_in_can):
     prev_time = timer()
 
     while True:
+        pub_track.publish(0)
         ret, frames, _ = vid.read()
         frame = frames[0]
         depth_frame = frames[1]
@@ -249,6 +258,8 @@ def detect_video(yolo, video_path, garbage_in_can):
         cv2.putText(result, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                     fontScale=0.50, color=(255, 0, 0), thickness=2)
         cv2.imshow("result", result)
+        yolo_frame = bridge.cv2_to_imgmsg(result, encoding="passthrough")
+        pub_frame1.publish(yolo_frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -323,6 +334,8 @@ def detect_video(yolo, video_path, garbage_in_can):
                 else:
                     img2 = cv2.rectangle(img2, (x2, y2), (x2+w2, y2+h2),(0, 0, 255), 2)
                 cv2.imshow('Tracking',img2)
+                tracking_frame = bridge.cv2_to_imgmsg(img2, encoding="passthrough")
+                pub_frame2.publish(tracking_frame)
 
                 # https://www.intelrealsense.com/wp-content/uploads/2020/06/Intel-RealSense-D400-Series-Datasheet-June-2020.pdf
                 total, cnt = 0, 0
@@ -421,6 +434,7 @@ def detect_video(yolo, video_path, garbage_in_can):
                     break
             else:
                 break
+            pub_track.publish(1)
 
 
     yolo.close_session()
