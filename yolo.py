@@ -340,7 +340,7 @@ def detect_video(yolo, video_path, garbage_in_can):
                 total2, cnt2 = 0, 0
                 for i in range(3):
                     for j in range(3):
-                        dep2 = depth.get_distance(np.minimum(i+x2+w2//2, 639), np.minimum(j+y2+h2//2, 479))
+                        dep2 = depth.get_distance(np.maximum(0, np.minimum(i+x2+w2//2, 639)), np.maximum(0, np.minimum(j+y2+h2//2, 479)))
                         if dep2!=0:
                             total2 += dep2
                             cnt2 += 1
