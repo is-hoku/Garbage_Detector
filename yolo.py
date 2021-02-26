@@ -310,7 +310,6 @@ def detect_video(yolo, video_path, garbage_in_can):
                 dst = cv2.calcBackProject([hsv],[0],roi_hist,[0,180],1)
 
                 # apply meanshift to get the new location
-                print(track_window2)
                 ok, track_window = tracker.update(frame)
                 x,y,w,h = track_window
 
@@ -329,7 +328,7 @@ def detect_video(yolo, video_path, garbage_in_can):
                 total, cnt = 0, 0
                 for i in range(3):
                     for j in range(3):
-                        dep = depth.get_distance(np.minimum(i+x+w//2, 639), np.minimum(j+y+h//2, 479))
+                        dep = depth.get_distance(np.maximum(0, np.minimum(i+x+w//2, 639)), np.maximum(0, np.minimum(j+y+h//2, 479)))
                         if (dep)!=0:
                             total += dep
                             cnt += 1
@@ -402,7 +401,7 @@ def detect_video(yolo, video_path, garbage_in_can):
                     print("ゴミを捨てたため追跡を終えます")
                     break
 
-                if ((worldy<=-0.25) and (not track_thing)):
+                if ((worldy<=-0.33) and (not track_thing)):
                     print("ポイ捨てした！\n")
                     track_thing = 1 #human
 
