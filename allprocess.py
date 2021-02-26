@@ -12,21 +12,17 @@ import numpy as np
 from keras import backend as K
 from keras.models import load_model
 from keras.layers import Input
-# from PIL import Image, ImageFont, ImageDraw
 
 from yolo3.model import yolo_eval, yolo_body, tiny_yolo_body
 from yolo3.utils import letterbox_image
 import os
 from keras.utils import multi_gpu_model
 
-# from realsensecv import RealsenseCapture
 
 #packages for ROS Publisher
 import rospy
-# from std_msgs.msg import Int32MultiArray
 from std_msgs.msg import Int8
 from geometry_msgs.msg import Point
-# from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import threading
 import message_filters
@@ -34,14 +30,10 @@ import pyrealsense2 as rs
 
 
 def start_node():
-    # rospy.init_node('bottle_place')
     rospy.loginfo('bottle_place node started')
-    pub = rospy.Publisher("bottle_points", Point)
+    pub = rospy.Publisher("bottle_point", Point)
     pub_flag = rospy.Publisher("bottle_or_person", Int8)
     return pub, pub_flag
-
-# def call_back(ros_data):
-#     np_arr = np.fromstring(ros_data.data, np.uint8)
 
 
 class YOLO(object):
@@ -135,9 +127,7 @@ class YOLO(object):
         if self.model_image_size != (None, None):
             assert self.model_image_size[0]%32 == 0, 'Multiples of 32 required'
             assert self.model_image_size[1]%32 == 0, 'Multiples of 32 required'
-            # print(image)
-            # print(image.shape)
-            # print(type(image))
+
             boxed_image = letterbox_image(image, tuple(reversed(self.model_image_size)))
         else:
             new_image_size = (image.width - (image.width % 32),
@@ -211,15 +201,10 @@ class YOLO(object):
         if person:
             near = 640000
             for i in human_list:
-                # print("human_list = ", human_list)
-                # print("i = "+str(i))
                 distance = (((i[0]-i[1])//2+i[1])-((ro-lo)//2+lo))**2+(((i[2]-i[3])//2+i[3])-((bo-to)//2+to))**2
-                # print("near = "+str(near))
-                # print("distance = "+str(distance))
                 if near>distance:
                     near = distance
                     ro2, lo2, bo2, to2 = i[0], i[1], i[2], i[3]
-                    # print("ro2, lo2, bo2, to2 = ", str(ro2), str(lo2), str(bo2), str(to2))
         print("Tracked Person = ", ro2, lo2, bo2, to2)
 
         end = timer()
@@ -242,33 +227,6 @@ class RealsenseSubscribe:
         from PIL import Image, ImageFont, ImageDraw
         #Start ROS node
         pub, pub_flag = start_node()
-
-        # vid = cv2.VideoCapture(video_path)
-
-
-
-        # vid = RealsenseCapture()
-        # vid.start()
-
-
-
-
-
-
-        # if not vid.isOpened():
-        #     raise IOError("Couldn't open webcam or video")
-        # video_FourCC    = int(vid.get(cv2.CAP_PROP_FOURCC))
-        # vid.set(cv2.CAP_PROP_FPS, 10)
-
-        # video_fps       = vid.get(cv2.CAP_PROP_FPS)
-        # video_size      = (int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
-        #                     int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-        # print(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-        # print(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        # isOutput = True if output_path != "" else False
-        # if isOutput:
-        #     print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
-        #     out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
         accum_time = 0
         curr_fps = 0
         fps = "FPS: ??"
@@ -276,22 +234,6 @@ class RealsenseSubscribe:
 
         while True:
             if self.ret:
-                # ret, frames, _ = vid.read()
-                # frame = frames[0]
-                # depth_frame = frames[1]
-
-                # CHECK!!!!!!!
-                # vid.read()
-                # frame = vid.frame
-                # print(frame)
-                # if type(frame) is int:
-                #     print('this is not array')
-                #     continue
-                # print("frame", vid.frame)
-                # print("frame.size", frame.size)
-                # print("type(frame)", type(frame))
-
-                # ret = True
                 frame = self.frames[0]
                 depth_frame = self.frames[1]
                 if (type(frame) is int)or(type(depth_frame) is int):
@@ -312,11 +254,8 @@ class RealsenseSubscribe:
                     curr_fps = 0
                 cv2.putText(result, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                             fontScale=0.50, color=(255, 0, 0), thickness=2)
-                # cv2.namedWindow("result", cv2.WINDOW_NORMAL)
                 cv2.imshow("result", result)
 
-                # if isOutput:
-                #     out.write(result)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
@@ -330,27 +269,28 @@ class RealsenseSubscribe:
             # ------------------------------Tracking-----------------------------------
                 # tracker_types = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'GOTURN', 'MOSSE', 'CSRT']
                 # tracker_type = tracker_types[7]
-                tracker = cv2.TrackerKCF_create()
-                tracker2 = cv2.TrackerKCF_create()
+                tracker = cv2.TrackerCSRT_create()
+                tracker2 = cv2.TrackerCSRT_create()
 
                 # setup initial location of window
                 left, right, top, bottom = left, right, top, bottom
                 r,h,ci,w = top, bottom-top, left, right-left  # simply hardcoded the values r, h, c, w
-                # track_window = (left, top, right-left, bottom-top) # x, y, w, h / c, r, w, h
-                # track_window = (np.minimum(weight, np.maximum(left, left+5)))
-                # if (w>10) and (ci>10):
-                #     track_window = (ci+5, r+5, w-5, h-5)
-                # else:
+                import matplotlib.pyplot as plt
+                # frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                frame_b, frame_g, frame_r = frame[:,:,0], frame[:,:,1], frame[:,:,2]
+                hist_b = cv2.calcHist([frame_b[top:bottom, left:right]],[0],None,[256],[0,256])
+                hist_g = cv2.calcHist([frame_g[top:bottom, left:right]],[0],None,[256],[0,256])
+                hist_r = cv2.calcHist([frame_r[top:bottom, left:right]],[0],None,[256],[0,256])
+                cv2.normalize(hist_b, hist_b,0,255,cv2.NORM_MINMAX)
+                cv2.normalize(hist_g, hist_g,0,255,cv2.NORM_MINMAX)
+                cv2.normalize(hist_r, hist_r,0,255,cv2.NORM_MINMAX)
+                # plt.plot(hist_r, color='r', label="r")
+                # plt.plot(hist_g, color='g', label="g")
+                # plt.plot(hist_b, color='b', label="b")
+                # plt.show()
                 track_window = (ci, r, w, h)
-                # print(left, top, right-left, bottom-top)
-
                 r2,h2,ci2,w2 = top2, bottom2-top2, left2, right2-left2  # simply hardcoded the values r, h, c, w
-                # track_window2 = (left2, top2, right2-left2, bottom2-top2) # x, y, w, h / c, r, w, h
-                # if (w2>20) and (ci2>20):
-                #     track_window2 = (ci2+10, r2+10, w2-10, h2-10)
-                # else:
                 track_window2 = (ci2, r2, w2, h2)
-                # print(left2, top2, right2-left2, bottom2-top2)
                 cv2.imwrite('bottledetect.jpg', frame[r:r+h, ci:ci+w])
                 cv2.imwrite('persondetect.jpg', frame[r2:r2+h2, ci2:ci2+w2])
 
@@ -367,31 +307,12 @@ class RealsenseSubscribe:
                 ok = tracker.init(frame, track_window)
                 ok2 = tracker2.init(frame, track_window2)
 
-                # start = timer()
                 track_thing = 0 #bottle
                 pts = Point()
                 pts2 = Point()
                 untrack = 0
 
                 while(1):
-                    # ret ,frames, depth = vid.read()
-                    # frame = frames[0]
-                    # depth_frame = frames[1]
-
-                    # vid.read()
-                    # frame = vid.frame
-                    # if type(frame) is int:
-                    #     print('this is not array')
-                    #     continue
-                    # depth_frame = vid.depth
-                    # depth = depth_frame
-
-                    # ret = True
-                    # frame = self.frames[0]
-                    # print("2domeno-frames")
-                    # depth_frame = self.frames[1]
-                    # depth = depth_frame
-
                     if self.ret:
                         frame = self.frames[0]
                         depth_frame = self.frames[1]
@@ -402,11 +323,9 @@ class RealsenseSubscribe:
 
                         # apply meanshift to get the new location
                         print(track_window2)
-                        # ret, track_window = cv2.meanShift(dst, track_window, term_crit)
                         ok, track_window = tracker.update(frame)
                         x,y,w,h = track_window
 
-                        # ret2, track_window2 = cv2.meanShift(dst, track_window2, term_crit)
                         ok, track_window2 = tracker2.update(frame)
                         x2,y2,w2,h2 = track_window2
 
@@ -422,10 +341,8 @@ class RealsenseSubscribe:
                         total, cnt = 0, 0
                         for i in range(3):
                             for j in range(3):
-                                # dep = depth.get_distance(i+x+w//2, j+y+h//2)
-                                # print(depth)
-                                dep = depth[j+y+h//2, i+x+w//2]*0.001
-                                # print('dep = ', dep)
+                                # dep = depth[j+y+h//2, i+x+w//2]*0.001
+                                dep = depth[np.minimum((j+y+h//2), 479), np.minimum((i+x+w//2), 639)]*0.001
                                 if (dep)!=0:
                                     total += dep
                                     cnt += 1
@@ -437,8 +354,7 @@ class RealsenseSubscribe:
                         total2, cnt2 = 0, 0
                         for i in range(3):
                             for j in range(3):
-                                # dep2 = depth.get_distance(i+x2+w2//2, j+y2+h2//2)
-                                dep2 = depth[j+y2+h2//2, i+x2+w2//2]*0.001
+                                dep2 = depth[np.minimum((j+y2+h2//2), 479), np.minimum((i+x2+w2//2), 639)]*0.001
                                 if dep2!=0:
                                     total2 += dep2
                                     cnt2 += 1
@@ -447,8 +363,6 @@ class RealsenseSubscribe:
                         else:
                             worldz2 = 0
 
-                        # worldz = depth.get_distance(x+w//2, y+h//2)
-                        # worldz2 = depth.get_distance(x2+w2//2, y2+h2//2)
                         print('worldz', worldz)
                         print('worldz2', worldz2)
                         if (worldz == 0) or (worldz2 == 0):
@@ -462,30 +376,47 @@ class RealsenseSubscribe:
                                 #human Tracking
                                 u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz)
                                 print('u_ud', u_ud)
-                                # print('x, y =', (x+w//2)-(img2.shape[1]//2), (img2.shape[0]//2)-(y+h//2))
                                 # 深度カメラとカラーカメラの物理的な距離を考慮した項(-0.3*u_ud)
                                 # これらの座標は物体を見たときの左の深度カメラを基準とする
                                 worldx = 0.05*(x+w//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                                 worldy = 0.05*((img2.shape[0]//2) - (y+h))/u_ud
                                 print('x,y,z = ', worldx, worldy, worldz)
-                                pts.x, pts.y, pts.z = float(worldx), float(worldy), float(worldz)
+                                pts.y, pts.z, pts.x = float(worldx), float(worldy), float(worldz)
 
                             else:
                                 #bottle Tracking
                                 u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz2)
                                 print('u_ud', u_ud)
-                                # print('x, y =', (x2+w2//2)-(img2.shape[1]//2), (img2.shape[0]//2)-(y2+h2//2))
                                 worldx2 = 0.05*(x2+w2//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                                 worldy2 = 0.05*((img2.shape[0]//2) - (y2+h2))/u_ud
                                 print('x2,y2,z2 = ', worldx2, worldy2, worldz2)
-                                pts2.x, pts2.y, pts.z = float(worldx2), float(worldy2), float(worldz2)
+                                pts2.y, pts2.z, pts.x = float(worldx2), float(worldy2), float(worldz2)
 
                         print("track_thing = ", track_thing)
 
-                        if (track_window==(0, 0, 0, 0)) or (track_window2==(0, 0, 0, 0)):
+
+                        frame_b, frame_g, frame_r = frame[:,:,0], frame[:,:,1], frame[:,:,2]
+                        hist_b2 = cv2.calcHist([frame_b[y: y+h, x: x+w]],[0],None,[256],[0,256])
+                        hist_g2 = cv2.calcHist([frame_g[y: y+h, x: x+w]],[0],None,[256],[0,256])
+                        hist_r2 = cv2.calcHist([frame_r[y: y+h, x: x+w]],[0],None,[256],[0,256])
+                        # plt.plot(hist_r2, color='r', label="r")
+                        # plt.plot(hist_g2, color='g', label="g")
+                        # plt.plot(hist_b2, color='b', label="b")
+                        # plt.show()
+
+
+                        # if (track_window==(0, 0, 0, 0)) or (track_window2==(0, 0, 0, 0)):
+                        cv2.normalize(hist_b2, hist_b2,0,255,cv2.NORM_MINMAX)
+                        cv2.normalize(hist_g2, hist_g2,0,255,cv2.NORM_MINMAX)
+                        cv2.normalize(hist_r2, hist_r2,0,255,cv2.NORM_MINMAX)
+                        print('compareHist(b)', cv2.compareHist(hist_b, hist_b2, cv2.HISTCMP_CORREL))
+                        print('compareHist(g)', cv2.compareHist(hist_g, hist_g2, cv2.HISTCMP_CORREL))
+                        print('compareHist(r)', cv2.compareHist(hist_r, hist_r2, cv2.HISTCMP_CORREL))
+                        print('track_window = ', track_window)
+                        if ((cv2.compareHist(hist_b, hist_b2, cv2.HISTCMP_CORREL)<=0.3)or(cv2.compareHist(hist_g, hist_g2, cv2.HISTCMP_CORREL)<=0.3)or(cv2.compareHist(hist_r, hist_r2, cv2.HISTCMP_CORREL)<=0.3))or((track_window==(0, 0, 0, 0)) or (track_window2==(0, 0, 0, 0))):
                             untrack += 1
                             print("untrack = ", untrack)
-                            if untrack>=50:
+                            if untrack>=30:
                                 print("追跡が外れた！\n")
                                 break
                         if ((worldy<=-0.5) and (not track_thing)):
@@ -506,16 +437,8 @@ class RealsenseSubscribe:
                         if k == 27:
                             break
 
-                        # if type(frame) == type(None):
-                        #     break
                     else:
                         break
-
-                    # end = timer()
-                    # print(end - start)
-                    # if (end-start)>=15:
-                    #     break
-
 
         yolo.close_session()
 
@@ -523,13 +446,9 @@ class RealsenseSubscribe:
     def callback(self, msg1, msg2):
         try:
             bridge = CvBridge()
-            # print("0")
             orig1 = bridge.imgmsg_to_cv2(msg1, "bgr8")
             orig1 = np.array(orig1, dtype=np.uint8)
-            # print("1")
             orig2 = bridge.imgmsg_to_cv2(msg2, 'passthrough')
-            # orig2 = msg2
-            # orig2 = np.array(msg2)
 
             if (type(orig1) is int) or (type(orig2) is int):
                 print("Waiting Frame!")
@@ -539,23 +458,14 @@ class RealsenseSubscribe:
                 orig2 = orig2.reshape([480, 640])
             self.frames = [orig1, orig2]
 
-            # print("self.frames is not empty")
-            # cv2.imshow("orig1", orig1)
-            # cv2.imshow("orig2", orig2)
-            # cv2.waitKey(1)
-            # detect_video(YOLO(), frames)
-
         except Exception as err:
             print(err)
 
     def read(self):
         from sensor_msgs.msg import Image
-        # rospy.init_node('img_proc')
         rospy.loginfo('Start to subscribe realsense topic')
         sub1 = message_filters.Subscriber("/camera/color/image_raw", Image)
         sub2 = message_filters.Subscriber("/camera/depth/image_rect_raw", Image)
-        # rospy.Subscriber("/camera/color/image_raw", Image, self.callback, callback_args=0)
-        # rospy.Subscriber("/camera/depth/image_rect_raw", Image, self.callback, callback_args=1)
         fps = 26.77
         delay = 1/fps*0.5
         ts = message_filters.ApproximateTimeSynchronizer([sub1,sub2], 10, delay)
@@ -568,12 +478,8 @@ if __name__ == '__main__':
     video_path = 0
     output_path = './output.avi'
     rospy.init_node('bottle_place')
-    # detect_video(YOLO(), video_path, output_path)
     vid = RealsenseSubscribe()
     thread1 = threading.Thread(target=vid.read)
     thread2 = threading.Thread(target=vid.detect_video, args=(YOLO(), ))
     thread1.start()
     thread2.start()
-
-    # vid.read()
-    # detect_video(YOLO(), video_path)
