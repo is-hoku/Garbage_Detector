@@ -288,6 +288,12 @@ def detect_video(yolo, video_path, garbage_in_can):
         track_window = (ci, r, w, h)
 
         r2,h2,ci2,w2 = top2, bottom2-top2, left2, right2-left2  # simply hardcoded the values r, h, c, w
+        hist_bp = cv2.calcHist([frame_b[top2:bottom2, left2:right2]],[0],None,[256],[0,256])
+        hist_gp = cv2.calcHist([frame_g[top2:bottom2, left2:right2]],[0],None,[256],[0,256])
+        hist_rp = cv2.calcHist([frame_r[top2:bottom2, left2:right2]],[0],None,[256],[0,256])
+        cv2.normalize(hist_bp, hist_bp,0,255,cv2.NORM_MINMAX)
+        cv2.normalize(hist_gp, hist_gp,0,255,cv2.NORM_MINMAX)
+        cv2.normalize(hist_rp, hist_rp,0,255,cv2.NORM_MINMAX)
         track_window2 = (ci2, r2, w2, h2)
         print(left2, top2, right2-left2, bottom2-top2)
         cv2.imwrite('bottledetect.jpg', frame[r:r+h, ci:ci+w])
@@ -399,12 +405,25 @@ def detect_video(yolo, video_path, garbage_in_can):
                 cv2.normalize(hist_b2, hist_b2,0,255,cv2.NORM_MINMAX)
                 cv2.normalize(hist_g2, hist_g2,0,255,cv2.NORM_MINMAX)
                 cv2.normalize(hist_r2, hist_r2,0,255,cv2.NORM_MINMAX)
-                print('compareHist(b)', cv2.compareHist(hist_b, hist_b2, cv2.HISTCMP_CORREL))
-                print('compareHist(g)', cv2.compareHist(hist_g, hist_g2, cv2.HISTCMP_CORREL))
-                print('compareHist(r)', cv2.compareHist(hist_r, hist_r2, cv2.HISTCMP_CORREL))
+                hist_bp2 = cv2.calcHist([frame_b[y: y+h, x: x+w]],[0],None,[256],[0,256])
+                hist_gp2 = cv2.calcHist([frame_g[y: y+h, x: x+w]],[0],None,[256],[0,256])
+                hist_rp2 = cv2.calcHist([frame_r[y: y+h, x: x+w]],[0],None,[256],[0,256])
+                cv2.normalize(hist_bp2, hist_bp2,0,255,cv2.NORM_MINMAX)
+                cv2.normalize(hist_gp2, hist_gp2,0,255,cv2.NORM_MINMAX)
+                cv2.normalize(hist_rp2, hist_rp2,0,255,cv2.NORM_MINMAX)
+                comp_b = cv2.compareHist(hist_b, hist_b2, cv2.HISTCMP_CORREL)
+                comp_g = cv2.compareHist(hist_g, hist_g2, cv2.HISTCMP_CORREL)
+                comp_r = cv2.compareHist(hist_r, hist_r2, cv2.HISTCMP_CORREL)
+                comp_bp = cv2.compareHist(hist_bp, hist_bp2, cv2.HISTCMP_CORREL)
+                comp_gp = cv2.compareHist(hist_gp, hist_gp2, cv2.HISTCMP_CORREL)
+                comp_rp = cv2.compareHist(hist_rp, hist_rp2, cv2.HISTCMP_CORREL)
+                print('compareHist(b)', comp_bp)
+                print('compareHist(g)', comp_gp)
+                print('compareHist(r)', comp_rp)
                 print("garbage_in_can", garbage_in_can)
-                # 追跡を止める条件は，bottle追跡中にヒストグラムが大きく変化するか枠が無くなるまたはpersonを見失う，もしくはperson追跡中に枠が無くなるかゴミがゴミ箱に入れられた，
-                if (track_thing==0 and ((cv2.compareHist(hist_b, hist_b2, cv2.HISTCMP_CORREL)<=0.1)or(cv2.compareHist(hist_g, hist_g2, cv2.HISTCMP_CORREL)<=0.1)or(cv2.compareHist(hist_r, hist_r2, cv2.HISTCMP_CORREL)<=0.1) or track_window==(0, 0, 0, 0))) or (track_window2==(0, 0, 0, 0)):
+                # 追跡を止める条件は，bottle追跡中にヒストグラムが大きく変化するか枠が無くなるまたはpersonを見失う，もしくはperson追跡中にヒストグラムが大きく変化するか枠が無くなるまたはゴミがゴミ箱に入れられた，
+                if (((track_thing==0 and ((comp_b<=0.1)or(comp_g<=0.1)or(comp_r<=0.1) or track_window==(0, 0, 0, 0))) or (track_window2==(0, 0, 0, 0))
+                or (track_thing==1 and ((comp_bp<=0.)or(comp_gp<=0.)or(comp_rp<=0.))))):
                     untrack += 1
                     print("untrack = ", untrack)
                     if untrack>=20:
