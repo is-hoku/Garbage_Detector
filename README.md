@@ -1,8 +1,15 @@
 # Garbage_Detector
 ## :information_source: Information
+### Realsenseをusbで直接使う(yolo_camera.py)   
 Node name: ```bottle_place```   
 Publisher: ```bottle_point```, ```bottle_or_person```   
-Subscriber: ```/camera/color/image_raw```, ```/camera/depth/image_rect_raw```   
+Subscriber: ```garbage_in_can``` 
+### RealsenseのtopicをSubscribeして使う(allprocess.py)   
+Node name: ```bottle_place```   
+Publisher: ```bottle_point```, ```bottle_or_person```   
+Subscriber: ```garbage_in_can```, ```/camera/color/image_raw```, ```/camera/depth/image_rect_raw```   
+***caution***   
+It's not completely!   
 
 ## :notebook: Note
 - Kerasをインストールして，keras-yolo3とlabelImgをディレクトリに持ってくる．   
