@@ -396,7 +396,7 @@ def detect_video(yolo, video_path):
                     if untrack>=30:
                         print("追跡が外れた！\n")
                         break
-                if ((worldy<=-0.5) and (not track_thing)):
+                if ((worldy<=-0.25) and (not track_thing)):
                     print("ポイ捨てした！\n")
                     track_thing = 1 #human
 
