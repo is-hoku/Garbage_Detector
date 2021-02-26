@@ -31,7 +31,7 @@ from cv_bridge import CvBridge
 
 
 def start_node():
-    rospy.init_node('bottle_place')
+    # rospy.init_node('bottle_place')
     rospy.loginfo('bottle_place node started')
     pub = rospy.Publisher("bottle_points", Point)
     pub_flag = rospy.Publisher("bottle_or_person", Int8)
@@ -147,7 +147,7 @@ class YOLO(object):
             feed_dict={
                 self.yolo_model.input: image_data,
                 self.input_image_shape: [image.size[1], image.size[0]],
-                K.learning_phase(): 0
+                # K.learning_phase(): 0
             })
 
         # print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
@@ -219,7 +219,7 @@ class YOLO(object):
         self.sess.close()
 
 # def detect_video(yolo, frames, video_path, output_path=""):
-def detect_video(yolo, video_path):
+def detect_video(yolo, video_path, garbage_in_can):
     #Start ROS node
     pub, pub_flag = start_node()
     vid = RealsenseCapture()
@@ -390,12 +390,18 @@ def detect_video(yolo, video_path):
                 print('compareHist(b)', cv2.compareHist(hist_b, hist_b2, cv2.HISTCMP_CORREL))
                 print('compareHist(g)', cv2.compareHist(hist_g, hist_g2, cv2.HISTCMP_CORREL))
                 print('compareHist(r)', cv2.compareHist(hist_r, hist_r2, cv2.HISTCMP_CORREL))
-                if ((cv2.compareHist(hist_b, hist_b2, cv2.HISTCMP_CORREL)<=0.1)or(cv2.compareHist(hist_g, hist_g2, cv2.HISTCMP_CORREL)<=0.1)or(cv2.compareHist(hist_r, hist_r2, cv2.HISTCMP_CORREL)<=0.1))or((track_thing==0 and track_window==(0, 0, 0, 0)) or (track_window2==(0, 0, 0, 0))):
+                print("garbage_in_can", garbage_in_can)
+                # 追跡を止める条件は，bottle追跡中にヒストグラムが大きく変化するか枠が無くなるまたはpersonを見失う，もしくはperson追跡中に枠が無くなるかゴミがゴミ箱に入れられた，
+                if (track_thing==0 and ((cv2.compareHist(hist_b, hist_b2, cv2.HISTCMP_CORREL)<=0.1)or(cv2.compareHist(hist_g, hist_g2, cv2.HISTCMP_CORREL)<=0.1)or(cv2.compareHist(hist_r, hist_r2, cv2.HISTCMP_CORREL)<=0.1) or track_window==(0, 0, 0, 0))) or (track_window2==(0, 0, 0, 0)):
                     untrack += 1
                     print("untrack = ", untrack)
                     if untrack>=30:
                         print("追跡が外れた！\n")
                         break
+                elif (track_thing==1 and garbage_in_can==1):
+                    print("ゴミを捨てたため追跡を終えます")
+                    break
+
                 if ((worldy<=-0.25) and (not track_thing)):
                     print("ポイ捨てした！\n")
                     track_thing = 1 #human
