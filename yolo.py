@@ -394,14 +394,15 @@ def detect_video(yolo, video_path, garbage_in_can):
                 if (track_thing==0 and ((cv2.compareHist(hist_b, hist_b2, cv2.HISTCMP_CORREL)<=0.1)or(cv2.compareHist(hist_g, hist_g2, cv2.HISTCMP_CORREL)<=0.1)or(cv2.compareHist(hist_r, hist_r2, cv2.HISTCMP_CORREL)<=0.1) or track_window==(0, 0, 0, 0))) or (track_window2==(0, 0, 0, 0)):
                     untrack += 1
                     print("untrack = ", untrack)
-                    if untrack>=30:
+                    if untrack>=20:
                         print("追跡が外れた！\n")
                         break
                 elif (track_thing==1 and garbage_in_can==1):
                     print("ゴミを捨てたため追跡を終えます")
                     break
 
-                if ((worldy<=-0.33) and (not track_thing)):
+                # ポイ捨ての基準はbottleを追跡していて，地面から10cmのところまで落ちたか，bottleを見失ったかつ見失う前のフレームでの高さがカメラの10cmより下
+                if (((worldy<=-0.3) or (track_window==(0,0,0,0) and ((y+h//2)<=-0.1)))and (not track_thing)):
                     print("ポイ捨てした！\n")
                     track_thing = 1 #human
 
