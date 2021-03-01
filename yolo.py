@@ -179,7 +179,7 @@ class YOLO(object):
             bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
             print(label, (left, top), (right, bottom))
-            if (predicted_class=="bottle") & (score >= 0.4):
+            if (predicted_class=="bottle") & (score >= 0.25):
                 bottle = True
                 ro = right
                 lo = left
@@ -296,7 +296,7 @@ def detect_video(yolo, video_path, garbage_in_can):
         cv2.normalize(hist_gp, hist_gp,0,255,cv2.NORM_MINMAX)
         cv2.normalize(hist_rp, hist_rp,0,255,cv2.NORM_MINMAX)
         track_window2 = (ci2, r2, w2, h2)
-        print(left2, top2, right2-left2, bottom2-top2)
+        # print(left2, top2, right2-left2, bottom2-top2)
         cv2.imwrite('bottledetect.jpg', frame[r:r+h, ci:ci+w])
         cv2.imwrite('persondetect.jpg', frame[r2:r2+h2, ci2:ci2+w2])
 
@@ -447,7 +447,7 @@ def detect_video(yolo, video_path, garbage_in_can):
                     break
 
                 # ポイ捨ての基準はbottleを追跡していて，地面から10cmのところまで落ちたか，bottleを見失ったかつ見失う前のフレームでの高さがカメラの10cmより下
-                if (((worldy<=-0.25) or (track_window==(0,0,0,0) and ((y+h//2)<=-0.2)))and (not track_thing)):
+                if (((worldy<=-0.2) or (track_window==(0,0,0,0) and (worldy<0.0)))and (not track_thing)):
                     print("ポイ捨てした！\n")
                     track_thing = 1 #human
 
