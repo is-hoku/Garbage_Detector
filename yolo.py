@@ -179,7 +179,7 @@ class YOLO(object):
             bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
             print(label, (left, top), (right, bottom))
-            if (predicted_class=="bottle") & (score >= 0.5):
+            if (predicted_class=="bottle") & (score >= 0.4):
                 bottle = True
                 ro = right
                 lo = left
@@ -258,7 +258,8 @@ def detect_video(yolo, video_path, garbage_in_can):
         cv2.putText(result, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                     fontScale=0.50, color=(255, 0, 0), thickness=2)
         cv2.imshow("result", result)
-        yolo_frame = bridge.cv2_to_imgmsg(result, encoding="passthrough")
+        yolo_frame = bridge.cv2_to_imgmsg(result, "bgr8")
+        # yolo_frame = result
         pub_frame1.publish(yolo_frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -340,7 +341,8 @@ def detect_video(yolo, video_path, garbage_in_can):
                 else:
                     img2 = cv2.rectangle(img2, (x2, y2), (x2+w2, y2+h2),(0, 0, 255), 2)
                 cv2.imshow('Tracking',img2)
-                tracking_frame = bridge.cv2_to_imgmsg(img2, encoding="passthrough")
+                tracking_frame = bridge.cv2_to_imgmsg(img2, "bgr8")
+                # tracking_frame = img2
                 pub_frame2.publish(tracking_frame)
 
                 # https://www.intelrealsense.com/wp-content/uploads/2020/06/Intel-RealSense-D400-Series-Datasheet-June-2020.pdf
@@ -353,6 +355,9 @@ def detect_video(yolo, video_path, garbage_in_can):
                             cnt += 1
                 if cnt!=0:
                     worldz = total/cnt
+                    # 人にぶつからないように距離を確保するため
+                    if worldz<1.0:
+                        worldz=0
                 else:
                     worldz = 0
 
@@ -365,6 +370,8 @@ def detect_video(yolo, video_path, garbage_in_can):
                             cnt2 += 1
                 if cnt2!=0:
                     worldz2 = total2/cnt2
+                    if worldz2<1.0:
+                        worldz2=0
                 else:
                     worldz2 = 0
 
@@ -378,7 +385,7 @@ def detect_video(yolo, video_path, garbage_in_can):
                 else:
                     # focus length = 1.93mm, distance between depth cameras = about 5cm, a pixel size = 3um
                     if (track_thing==0):
-                        #human Tracking
+                        #bottle Tracking
                         u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz)
                         print('u_ud', u_ud)
                         print('x, y =', (x+w//2)-(img2.shape[1]//2), (img2.shape[0]//2)-(y+h//2))
@@ -386,15 +393,16 @@ def detect_video(yolo, video_path, garbage_in_can):
                         # これらの座標は物体を見たときの左の深度カメラを基準とする
                         worldx = 0.05*(x+w//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                         worldy = 0.05*((img2.shape[0]//2) - (y+h))/u_ud
-                        print('x,y,z = ', worldx, worldy, worldz)
-                        pts.y, pts.z, pts.x = float(worldx), float(worldy), float(worldz)
+                        print('x,y,z = ', worldx, worldy, worldz-1.0)
+                        pts.y, pts.z, pts.x = float(worldx), float(worldy), float(worldz)-1.0
 
                     else:
-                        #bottle Tracking
+                        #human Tracking
                         u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz2)
                         worldx2 = 0.05*(x2+w2//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                         worldy2 = 0.05*((img2.shape[0]//2) - (y2+h2))/u_ud
-                        pts2.x, pts2.y, pts.z = float(worldx2), float(worldy2), float(worldz2)
+                        print('x2,y2,z2 = ', worldx2, worldy2, worldz2-1.0)
+                        pts2.x, pts2.y, pts.z = float(worldx2), float(worldy2), float(worldz2)-1.0
 
                 print("track_thing = ", track_thing)
 
@@ -439,17 +447,21 @@ def detect_video(yolo, video_path, garbage_in_can):
                     break
 
                 # ポイ捨ての基準はbottleを追跡していて，地面から10cmのところまで落ちたか，bottleを見失ったかつ見失う前のフレームでの高さがカメラの10cmより下
-                if (((worldy<=-0.3) or (track_window==(0,0,0,0) and ((y+h//2)<=-0.1)))and (not track_thing)):
+                if (((worldy<=-0.25) or (track_window==(0,0,0,0) and ((y+h//2)<=-0.2)))and (not track_thing)):
                     print("ポイ捨てした！\n")
                     track_thing = 1 #human
 
                 if track_thing==0:
                     tracking_point = pts
+                    if not (pts.x==0.0 and pts.y==0.0 and pts.z==0.0):
+                        pub.publish(tracking_point)
                     flag = 0 #bottle
                 else:
                     tracking_point = pts2
+                    if not (pts2.x==0.0 and pts2.y==0.0 and pts2.z==0.0):
+                        pub.publish(tracking_point)
                     flag = 1 #person
-                pub.publish(tracking_point)
+                # pub.publish(tracking_point)
                 pub_flag.publish(flag)
 
 
