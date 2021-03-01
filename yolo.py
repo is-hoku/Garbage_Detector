@@ -405,9 +405,9 @@ def detect_video(yolo, video_path, garbage_in_can):
                 cv2.normalize(hist_b2, hist_b2,0,255,cv2.NORM_MINMAX)
                 cv2.normalize(hist_g2, hist_g2,0,255,cv2.NORM_MINMAX)
                 cv2.normalize(hist_r2, hist_r2,0,255,cv2.NORM_MINMAX)
-                hist_bp2 = cv2.calcHist([frame_b[y: y+h, x: x+w]],[0],None,[256],[0,256])
-                hist_gp2 = cv2.calcHist([frame_g[y: y+h, x: x+w]],[0],None,[256],[0,256])
-                hist_rp2 = cv2.calcHist([frame_r[y: y+h, x: x+w]],[0],None,[256],[0,256])
+                hist_bp2 = cv2.calcHist([frame_b[y2: y2+h2, x2: x2+w2]],[0],None,[256],[0,256])
+                hist_gp2 = cv2.calcHist([frame_g[y2: y2+h2, x2: x2+w2]],[0],None,[256],[0,256])
+                hist_rp2 = cv2.calcHist([frame_r[y2: y2+h2, x2: x2+w2]],[0],None,[256],[0,256])
                 cv2.normalize(hist_bp2, hist_bp2,0,255,cv2.NORM_MINMAX)
                 cv2.normalize(hist_gp2, hist_gp2,0,255,cv2.NORM_MINMAX)
                 cv2.normalize(hist_rp2, hist_rp2,0,255,cv2.NORM_MINMAX)
@@ -417,13 +417,18 @@ def detect_video(yolo, video_path, garbage_in_can):
                 comp_bp = cv2.compareHist(hist_bp, hist_bp2, cv2.HISTCMP_CORREL)
                 comp_gp = cv2.compareHist(hist_gp, hist_gp2, cv2.HISTCMP_CORREL)
                 comp_rp = cv2.compareHist(hist_rp, hist_rp2, cv2.HISTCMP_CORREL)
-                print('compareHist(b)', comp_bp)
-                print('compareHist(g)', comp_gp)
-                print('compareHist(r)', comp_rp)
+                print('compareHist(b)', comp_b)
+                print('compareHist(g)', comp_g)
+                print('compareHist(r)', comp_r)
+                print('compareHist(bp)', comp_bp)
+                print('compareHist(gp)', comp_gp)
+                print('compareHist(rp)', comp_rp)
                 print("garbage_in_can", garbage_in_can)
                 # 追跡を止める条件は，bottle追跡中にヒストグラムが大きく変化するか枠が無くなるまたはpersonを見失う，もしくはperson追跡中にヒストグラムが大きく変化するか枠が無くなるまたはゴミがゴミ箱に入れられた，
-                if (((track_thing==0 and ((comp_b<=0.1)or(comp_g<=0.1)or(comp_r<=0.1) or track_window==(0, 0, 0, 0))) or (track_window2==(0, 0, 0, 0))
-                or (track_thing==1 and ((comp_bp<=0.)or(comp_gp<=0.)or(comp_rp<=0.))))):
+                # if (track_thing==0 and (((comp_b<=0.1)or(comp_g<=0.1)or(comp_r<=0.1) or track_window==(0, 0, 0, 0)) or (comp_b==1.0 and comp_g==1.0 and comp_r==1.0)) or (track_window2==(0, 0, 0, 0))
+                # or (track_thing==1 and (((comp_bp<=0.)or(comp_gp<=0.)or(comp_rp<=0.)) or comp_bp==1.0 and comp_gp==1.0 and comp_rp==1.0))):
+                if ((track_thing==0 and ((comp_b<=0.1)or(comp_g<=0.1)or(comp_r<=0.1) or track_window==(0, 0, 0, 0))) or (track_window2==(0, 0, 0, 0))
+                or (track_thing==1 and ((comp_bp<=0.)or(comp_gp<=0.)or(comp_rp<=0.)))):
                     untrack += 1
                     print("untrack = ", untrack)
                     if untrack>=20:
