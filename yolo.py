@@ -7,6 +7,7 @@ import time
 import colorsys
 import os
 from timeit import default_timer as timer
+import sys
 
 import numpy as np
 from keras import backend as K
@@ -225,7 +226,7 @@ class YOLO(object):
         self.sess.close()
 
 # def detect_video(yolo, frames, video_path, output_path=""):
-def detect_video(yolo, video_path, garbage_in_can):
+def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
     from PIL import Image, ImageFont, ImageDraw
     #Start ROS node
     pub, pub_flag, pub_track, pub_frame1, pub_frame2 = start_node()
@@ -465,9 +466,11 @@ def detect_video(yolo, video_path, garbage_in_can):
                 pub_flag.publish(flag)
 
 
-                k = cv2.waitKey(60) & 0xff
-                if k == 27:
-                    break
+                k = cv2.waitKey(1) & 0xff
+                if (k == 27) or emergency_stop: # dev
+                # if emergency_stop: # ops
+                    print("program is stoped!")
+                    sys.exit(0)
             else:
                 break
             pub_track.publish(1)
