@@ -23,6 +23,11 @@ Node name: bottle_place
 ***caution***   
 It's not completely!   
 
+### 環境変数   
+ROS_IP=192.168.10.3   
+ROS_IP(another)=192.168.10.4   
+ROS_MASTER_URI=http://192.168.10.3:11311   
+
 ## :notebook: Note
 - Kerasをインストールして，keras-yolo3とlabelImgをディレクトリに持ってくる．   
 - keras-yolo3の中に```yolo.py```, ```yolo_video.py```, ```yolo_camera.py```, ```realsensecv.py```を置く．   
