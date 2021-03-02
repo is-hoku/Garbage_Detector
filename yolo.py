@@ -106,7 +106,7 @@ class YOLO(object):
                 num_anchors/len(self.yolo_model.output) * (num_classes + 5), \
                 'Mismatch between model and given anchor and class sizes'
 
-        print('{} model, anchors, and classes loaded.'.format(model_path))
+        # print('{} model, anchors, and classes loaded.'.format(model_path))
 
         # Generate colors for drawing bounding boxes.
         hsv_tuples = [(x / len(self.class_names), 1., 1.)
@@ -179,7 +179,7 @@ class YOLO(object):
             left = max(0, np.floor(left + 0.5).astype('int32'))
             bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
-            print(label, (left, top), (right, bottom))
+            # print(label, (left, top), (right, bottom))
             if (predicted_class=="bottle") & (score >= 0.25):
                 bottle = True
                 ro = right
@@ -208,7 +208,7 @@ class YOLO(object):
             draw.text(text_origin, label, fill=(0, 0, 0), font=font)
             del draw
 
-        print("human_list = ", human_list)
+        # print("human_list = ", human_list)
         if person:
             near = 640000
             for i in human_list:
@@ -216,7 +216,7 @@ class YOLO(object):
                 if near>distance:
                     near = distance
                     ro2, lo2, bo2, to2 = i[0], i[1], i[2], i[3]
-        print("Tracked Person = ", ro2, lo2, bo2, to2)
+        # print("Tracked Person = ", ro2, lo2, bo2, to2)
 
         end = timer()
         print("一回の検出にかかる時間", end - start)
@@ -238,6 +238,7 @@ def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
     curr_fps = 0
     fps = "FPS: ??"
     prev_time = timer()
+    worldy = 0.0
 
     while True:
         pub_track.publish(0)
@@ -354,6 +355,7 @@ def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
                         if (dep)!=0:
                             total += dep
                             cnt += 1
+                            print('dep = ', dep)
                 if cnt!=0:
                     worldz = total/cnt
                     # 人にぶつからないように距離を確保するため
@@ -376,10 +378,12 @@ def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
                 else:
                     worldz2 = 0
 
-                print('worldz', worldz)
-                print('worldz2', worldz2)
+                # print('worldz', worldz)
+                # print('worldz2', worldz2)
                 if (worldz == 0) or (worldz2 == 0):
+                    # break
                     worldx, worldy = 0, 0
+                    worldx = 0
                     pts.x, pts.y, pts.z = 0.0, 0.0, 0.0
                     worldx2, worldy2 = 0, 0
                     pts2.x, pts2.y, pts2.z = 0.0, 0.0, 0.0
@@ -388,8 +392,8 @@ def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
                     if (track_thing==0):
                         #bottle Tracking
                         u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz)
-                        print('u_ud', u_ud)
-                        print('x, y =', (x+w//2)-(img2.shape[1]//2), (img2.shape[0]//2)-(y+h//2))
+                        # print('u_ud', u_ud)
+                        # print('x, y =', (x+w//2)-(img2.shape[1]//2), (img2.shape[0]//2)-(y+h//2))
                         # 深度カメラとカラーカメラの物理的な距離を考慮した項(-0.3*u_ud)
                         # これらの座標は物体を見たときの左の深度カメラを基準とする
                         worldx = 0.05*(x+w//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
@@ -426,29 +430,36 @@ def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
                 comp_bp = cv2.compareHist(hist_bp, hist_bp2, cv2.HISTCMP_CORREL)
                 comp_gp = cv2.compareHist(hist_gp, hist_gp2, cv2.HISTCMP_CORREL)
                 comp_rp = cv2.compareHist(hist_rp, hist_rp2, cv2.HISTCMP_CORREL)
-                print('compareHist(b)', comp_b)
-                print('compareHist(g)', comp_g)
-                print('compareHist(r)', comp_r)
-                print('compareHist(bp)', comp_bp)
-                print('compareHist(gp)', comp_gp)
-                print('compareHist(rp)', comp_rp)
-                print("garbage_in_can", garbage_in_can)
+                # print('compareHist(b)', comp_b)
+                # print('compareHist(g)', comp_g)
+                # print('compareHist(r)', comp_r)
+                # print('compareHist(bp)', comp_bp)
+                # print('compareHist(gp)', comp_gp)
+                # print('compareHist(rp)', comp_rp)
+                # print("garbage_in_can", garbage_in_can)
                 # 追跡を止める条件は，bottle追跡中にヒストグラムが大きく変化するか枠が無くなるまたはpersonを見失う，もしくはperson追跡中にヒストグラムが大きく変化するか枠が無くなるまたはゴミがゴミ箱に入れられた，
-                # if (track_thing==0 and (((comp_b<=0.1)or(comp_g<=0.1)or(comp_r<=0.1) or track_window==(0, 0, 0, 0)) or (comp_b==1.0 and comp_g==1.0 and comp_r==1.0)) or (track_window2==(0, 0, 0, 0))
-                # or (track_thing==1 and (((comp_bp<=0.)or(comp_gp<=0.)or(comp_rp<=0.)) or comp_bp==1.0 and comp_gp==1.0 and comp_rp==1.0))):
                 if ((track_thing==0 and ((comp_b<=0.1)or(comp_g<=0.1)or(comp_r<=0.1) or track_window==(0, 0, 0, 0))) or (track_window2==(0, 0, 0, 0))
                 or (track_thing==1 and ((comp_bp<=0.)or(comp_gp<=0.)or(comp_rp<=0.)))):
                     untrack += 1
                     print("untrack = ", untrack)
-                    if untrack>=20:
+                    if untrack>=30:
                         print("追跡が外れた！\n")
+                        break
+                elif (track_thing==0 and (x+w>640 or x<0) and (y+h>480 or y<0)) or (track_thing==1 and (x2+w2>640 or x2<0) and (y2+h2>480 or y2<0)):
+                    untrack+=1
+                    print("untrack = ", untrack)
+                    if untrack>=50:
+                        print("枠が画面外で固まった")
                         break
                 elif (track_thing==1 and garbage_in_can==1):
                     print("ゴミを捨てたため追跡を終えます")
                     break
+                else:
+                    untrack = 0
 
                 # ポイ捨ての基準はbottleを追跡していて，地面から10cmのところまで落ちたか，bottleを見失ったかつ見失う前のフレームでの高さがカメラの10cmより下
-                if (((worldy<=-0.2) or (track_window==(0,0,0,0) and (worldy<0.0)))and (not track_thing)):
+                print('track_window = ', track_window)
+                if (((worldy<=-0.10) or (track_window==(0,0,0,0) and (worldy<0.5))) and (not track_thing)):
                     print("ポイ捨てした！\n")
                     track_thing = 1 #human
 
@@ -462,7 +473,7 @@ def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
                     if not (pts2.x==0.0 and pts2.y==0.0 and pts2.z==0.0):
                         pub.publish(tracking_point)
                     flag = 1 #person
-                # pub.publish(tracking_point)
+
                 pub_flag.publish(flag)
 
 
