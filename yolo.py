@@ -355,11 +355,11 @@ def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
                         if (dep)!=0:
                             total += dep
                             cnt += 1
-                            print('dep = ', dep)
                 if cnt!=0:
                     worldz = total/cnt
+                    # (x-w//2)
                     # 人にぶつからないように距離を確保するため
-                    if worldz<1.0:
+                    if (worldz<1.0) or (worldz>3.0):
                         worldz=0
                 else:
                     worldz = 0
@@ -478,13 +478,13 @@ def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
 
 
                 k = cv2.waitKey(1) & 0xff
-                if (k == 27) or emergency_stop: # dev
+                # print("emergency_stop", emergency_stop)
+                if (k == 27) or emergency_stop==1: # dev
                 # if emergency_stop: # ops
                     print("program is stoped!")
                     sys.exit(0)
             else:
                 break
             pub_track.publish(1)
-
 
     yolo.close_session()
