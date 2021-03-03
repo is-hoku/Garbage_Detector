@@ -7,7 +7,7 @@ from std_msgs.msg import Int8
 root = Tk()
 root.title(u"Robot Controller")
 root.geometry("400x300")
-# rospy.init_node("robot_controller")
+rospy.init_node("robot_controller")
 pub = rospy.Publisher("emergency_stop", Int8)
 
 def stop_button():

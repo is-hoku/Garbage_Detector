@@ -478,7 +478,7 @@ def detect_video(yolo, video_path, garbage_in_can, emergency_stop):
 
 
                 k = cv2.waitKey(1) & 0xff
-                # print("emergency_stop", emergency_stop)
+                print("emergency_stop", emergency_stop)
                 if (k == 27) or emergency_stop==1: # dev
                 # if emergency_stop: # ops
                     print("program is stoped!")

@@ -8,6 +8,7 @@ import rospy
 import numpy as np
 import pyrealsense2 as rs
 import threading
+import time
 
 
 class Garbage_Detecter():
@@ -16,13 +17,11 @@ class Garbage_Detecter():
         self.emergency_stop = 0
 
     def callback(self, data):
-        rospy.loginfo('callback called')
-        if data==1:
-            rospy.loginfo("Pressed emergency_stop")
+        if data.data==1:
             self.emergency_stop = 1
-        else:
-            self.emergency_stop = 0
-            rospy.loginfo("Not pressed emergency_stop")
+            rospy.loginfo("self.emergency_stop is 1")
+        time.sleep(1)
+        # self.emergency_stop = 0
 
     def GarbageInCan(self):
         # self.garbage_in_can = rospy.Subscriber("garbage_in_can", Int8, self.callback)
@@ -32,6 +31,7 @@ class Garbage_Detecter():
         rospy.loginfo("emergencystop function")
         # self.emergency_stop = 0
         rospy.Subscriber("emergency_stop", Int8, self.callback)
+
         # if sub==1:
         #     rospy.loginfo("Pressed emergency_stop")
         #     self.emergency_stop = 1
