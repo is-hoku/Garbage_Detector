@@ -26,11 +26,13 @@ def start_node():
     # rospy.init_node('bottle_place')
     # rospy.loginfo('bottle_place node started')
     pub = rospy.Publisher("real_coordinate", Point)
-    pub_flag = rospy.Publisher("bottle_or_person", Int8)
-    pub_track = rospy.Publisher("tracking", Int8)
+    # pub_flag = rospy.Publisher("bottle_or_person", Int8)
+    pub_flag = rospy.Publisher("tracking", Int8)
+    # pub_track = rospy.Publisher("tracking", Int8)
     pub_frame1 = rospy.Publisher("yolo_frame", Image)
     pub_frame2 = rospy.Publisher("tracking_frame", Image)
-    return pub, pub_flag, pub_track, pub_frame1, pub_frame2
+    # return pub, pub_flag, pub_track, pub_frame1, pub_frame2
+    return pub, pub_flag, pub_frame1, pub_frame2
 
 
 class YOLO(object):
@@ -215,7 +217,8 @@ class Garbage_Detector():
     def detect_video(self, yolo, video_path):
         from PIL import Image, ImageFont, ImageDraw
         #Start ROS node
-        pub, pub_flag, pub_track, pub_frame1, pub_frame2 = start_node()
+        # pub, pub_flag, pub_track, pub_frame1, pub_frame2 = start_node()
+        pub, pub_flag, pub_frame1, pub_frame2 = start_node()
         vid = RealsenseCapture()
         vid.start()
         bridge = CvBridge()
@@ -227,7 +230,7 @@ class Garbage_Detector():
         worldy = 0.0
 
         while True:
-            pub_track.publish(0)
+            # pub_track.publish(0)
             ret, frames, _ = vid.read()
             frame = frames[0]
             depth_frame = frames[1]
@@ -367,13 +370,13 @@ class Garbage_Detector():
                     if worldz2 == 0:
                         # break
                         worldx, worldy = 0, 0
-                        worldx = 0
+                        # worldx = 0
                         pts.x, pts.y, pts.z = 0.0, 0.0, 0.0
                         worldx2, worldy2 = 0, 0
                         pts2.x, pts2.y, pts2.z = 0.0, 0.0, 0.0
                     else:
                         # focus length = 1.93mm, distance between depth cameras = about 5cm, a pixel size = 3um
-                        if (track_thing==0):
+                        if (track_thing==0) and (not worldz==0):
                             #bottle Tracking
                             u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz)
                             # print('u_ud', u_ud)
@@ -383,16 +386,19 @@ class Garbage_Detector():
                             worldx = 0.05*(x+w//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                             worldy = 0.05*((img2.shape[0]//2) - (y+h))/u_ud
                             print('x,y,z = ', worldx, worldy, worldz-0.6)
-                            pts.y, pts.z, pts.x = float(worldx), float(worldy), float(worldz)-0.6
+                            pts.y, pts.z, pts.x = -1.0*float(worldx), float(worldy), float(worldz)-0.6
                             # pts.y, pts.z, pts.x = float(0.0), float(worldy), float(1.0)
 
                         else:
                             #human Tracking
+                            if worldz==0:
+                                worldx, worldy = 0, 0
+                                pts.x, pts.y, pts.z = 0.0, 0.0, 0.0
                             u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz2)
                             worldx2 = 0.05*(x2+w2//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                             worldy2 = 0.05*((img2.shape[0]//2) - (y2+h2))/u_ud
                             print('x2,y2,z2 = ', worldx2, worldy2, worldz2-0.6)
-                            pts2.y, pts2.z, pts2.x = float(worldx2), float(worldy2), float(worldz2)-0.6
+                            pts2.y, pts2.z, pts2.x = -1.0*float(worldx2), float(worldy2), float(worldz2)-0.6
                             # pts.y, pts.z, pts.x = float(0.0), float(worldy), float(1.0)
 
                     print("track_thing = ", track_thing)
@@ -473,11 +479,13 @@ class Garbage_Detector():
                     k = cv2.waitKey(1) & 0xff
                     # print("emergency_stop", self.emergency_stop)
                     # if (k == 27) or self.emergency_stop==1: # dev
-                    if self.emergency_stop: # ops
+                    if self.emergency_stop==1: # ops
+                        print('emergency_stop == 1')
                         break
                 else:
                     break
-                pub_track.publish(1)
+                # pub_track.publish(1)
+        pub_flag.publish(flag)
 
         yolo.close_session()
 
@@ -488,14 +496,18 @@ class Garbage_Detector():
     def callback(self, data):
         if data.data==1:
             self.emergency_stop = 1
-            # rospy.loginfo("emergency_stop is 1")
+            rospy.loginfo("emergency_stop is 1")
+
+    def callback2(self, data):
+        if data.data==1:
+            self.garbage_in_can = 1
+            rospy.loginfo("garbage_in_can is 1")
 
     def GarbageInCan(self):
-        self.garbage_in_can = rospy.Subscriber("garbage_in_can", Int8, self.callback)
+        self.garbage_in_can = rospy.Subscriber("garbage_in_can", Int8, self.callback2)
         # self.garbage_in_can = 0 # TEST
         rospy.spin()
     def EmergencyStop(self):
-        # rospy.loginfo("emergencystop function")
         rospy.Subscriber("emergency_stop", Int8, self.callback)
         rospy.spin()
 
