@@ -24,7 +24,7 @@ import threading
 def start_node():
     from sensor_msgs.msg import Image
     # rospy.init_node('bottle_place')
-    rospy.loginfo('bottle_place node started')
+    # rospy.loginfo('bottle_place node started')
     pub = rospy.Publisher("real_coordinate", Point)
     pub_flag = rospy.Publisher("bottle_or_person", Int8)
     pub_track = rospy.Publisher("tracking", Int8)
@@ -204,7 +204,7 @@ class YOLO(object):
                     ro2, lo2, bo2, to2 = i[0], i[1], i[2], i[3]
 
         end = timer()
-        print("一回の検出にかかる時間", end - start)
+        # print("一回の検出にかかる時間", end - start)
         return image, bottle, person, ro, lo, bo, to, ro2, lo2, bo2, to2
 
     def close_session(self):
@@ -356,14 +356,15 @@ class Garbage_Detector():
                                 cnt2 += 1
                     if cnt2!=0:
                         worldz2 = total2/cnt2
-                        if worldz2<1.0:
+                        if (worldz2<0.6) or (worldz2>3.0):
                             worldz2=0
                     else:
                         worldz2 = 0
 
                     # print('worldz', worldz)
                     # print('worldz2', worldz2)
-                    if (worldz == 0) or (worldz2 == 0):
+                    # if (worldz == 0) or (worldz2 == 0):
+                    if worldz2 == 0:
                         # break
                         worldx, worldy = 0, 0
                         worldx = 0
@@ -381,16 +382,18 @@ class Garbage_Detector():
                             # これらの座標は物体を見たときの左の深度カメラを基準とする
                             worldx = 0.05*(x+w//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                             worldy = 0.05*((img2.shape[0]//2) - (y+h))/u_ud
-                            print('x,y,z = ', worldx, worldy, worldz-1.0)
+                            print('x,y,z = ', worldx, worldy, worldz-0.6)
                             pts.y, pts.z, pts.x = float(worldx), float(worldy), float(worldz)-0.6
+                            # pts.y, pts.z, pts.x = float(0.0), float(worldy), float(1.0)
 
                         else:
                             #human Tracking
                             u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz2)
                             worldx2 = 0.05*(x2+w2//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                             worldy2 = 0.05*((img2.shape[0]//2) - (y2+h2))/u_ud
-                            print('x2,y2,z2 = ', worldx2, worldy2, worldz2-1.0)
-                            pts2.y, ptsz.z, pts.x = float(worldx2), float(worldy2), float(worldz2)-0.6
+                            print('x2,y2,z2 = ', worldx2, worldy2, worldz2-0.6)
+                            pts2.y, pts2.z, pts2.x = float(worldx2), float(worldy2), float(worldz2)-0.6
+                            # pts.y, pts.z, pts.x = float(0.0), float(worldy), float(1.0)
 
                     print("track_thing = ", track_thing)
 
@@ -441,27 +444,34 @@ class Garbage_Detector():
                         untrack = 0
 
                     # ポイ捨ての基準はbottleを追跡していて，地面から10cmのところまで落ちたか，bottleを見失ったかつ見失う前のフレームでの高さがカメラの10cmより下
-                    print('track_window = ', track_window)
-                    if (((worldy<=-0.10) or (track_window==(0,0,0,0) and (worldy<0.5))) and (not track_thing)):
+                    # print('track_window = ', track_window)
+                    if (((worldy<=-0.15) or (track_window==(0,0,0,0) and (worldy<0.5))) and (not track_thing)):
                         print("ポイ捨てした！\n")
                         track_thing = 1 #human
 
-                    if track_thing==0:
-                        tracking_point = pts
-                        if not (pts.x==0.0 and pts.y==0.0 and pts.z==0.0):
-                            pub.publish(tracking_point)
-                        flag = 0 #bottle
-                    else:
+                    # if track_thing==0:
+                    #     tracking_point = pts
+                    #     if not (pts.x==0.0 and pts.y==0.0 and pts.z==0.0):
+                    #         pub.publish(tracking_point)
+                    #     flag = 0 #bottle
+                    # else:
+                    #     tracking_point = pts2
+                    #     if not (pts2.x==0.0 and pts2.y==0.0 and pts2.z==0.0):
+                    #         pub.publish(tracking_point)
+                    #     flag = 1 #person
+                    if track_thing==1:
                         tracking_point = pts2
                         if not (pts2.x==0.0 and pts2.y==0.0 and pts2.z==0.0):
                             pub.publish(tracking_point)
-                        flag = 1 #person
+                        flag = 1
+                    else:
+                        flag = 0
 
                     pub_flag.publish(flag)
 
 
                     k = cv2.waitKey(1) & 0xff
-                    print("emergency_stop", self.emergency_stop)
+                    # print("emergency_stop", self.emergency_stop)
                     # if (k == 27) or self.emergency_stop==1: # dev
                     if self.emergency_stop: # ops
                         break
@@ -478,21 +488,21 @@ class Garbage_Detector():
     def callback(self, data):
         if data.data==1:
             self.emergency_stop = 1
-            rospy.loginfo("emergency_stop is 1")
+            # rospy.loginfo("emergency_stop is 1")
 
     def GarbageInCan(self):
         self.garbage_in_can = rospy.Subscriber("garbage_in_can", Int8, self.callback)
         # self.garbage_in_can = 0 # TEST
         rospy.spin()
     def EmergencyStop(self):
-        rospy.loginfo("emergencystop function")
+        # rospy.loginfo("emergencystop function")
         rospy.Subscriber("emergency_stop", Int8, self.callback)
         rospy.spin()
 
 
 if __name__ == '__main__':
     rospy.init_node('bottle_place')
-    rospy.loginfo('bottle_place node started')
+    # rospy.loginfo('bottle_place node started')
     garbage = Garbage_Detector()
     video_path = 0
     # output_path = './output.avi'
