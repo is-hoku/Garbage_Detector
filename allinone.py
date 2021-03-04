@@ -4,28 +4,18 @@ import colorsys
 import os
 from timeit import default_timer as timer
 import sys
-
 import numpy as np
 from keras import backend as K
 from keras.models import load_model
 from keras.layers import Input
-# from PIL import Image, ImageFont, ImageDraw
-
 from yolo3.model import yolo_eval, yolo_body, tiny_yolo_body
 from yolo3.utils import letterbox_image
-import os
 from keras.utils import multi_gpu_model
-
 from realsensecv import RealsenseCapture
-
-#packages for ROS Publisher
 import rospy
-# from std_msgs.msg import Int32MultiArray
 from std_msgs.msg import Int8
 from geometry_msgs.msg import Point
-# from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-
 from timeit import default_timer as timer
 import pyrealsense2 as rs
 import threading
@@ -41,9 +31,6 @@ def start_node():
     pub_frame1 = rospy.Publisher("yolo_frame", Image)
     pub_frame2 = rospy.Publisher("tracking_frame", Image)
     return pub, pub_flag, pub_track, pub_frame1, pub_frame2
-
-# def call_back(ros_data):
-#     np_arr = np.fromstring(ros_data.data, np.uint8)
 
 
 class YOLO(object):
@@ -179,7 +166,7 @@ class YOLO(object):
             left = max(0, np.floor(left + 0.5).astype('int32'))
             bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
-            # print(label, (left, top), (right, bottom))
+
             if (predicted_class=="bottle") & (score >= 0.25):
                 bottle = True
                 ro = right
@@ -208,7 +195,6 @@ class YOLO(object):
             draw.text(text_origin, label, fill=(0, 0, 0), font=font)
             del draw
 
-        # print("human_list = ", human_list)
         if person:
             near = 640000
             for i in human_list:
@@ -216,7 +202,6 @@ class YOLO(object):
                 if near>distance:
                     near = distance
                     ro2, lo2, bo2, to2 = i[0], i[1], i[2], i[3]
-        # print("Tracked Person = ", ro2, lo2, bo2, to2)
 
         end = timer()
         print("一回の検出にかかる時間", end - start)
@@ -262,7 +247,6 @@ class Garbage_Detector():
                         fontScale=0.50, color=(255, 0, 0), thickness=2)
             cv2.imshow("result", result)
             yolo_frame = bridge.cv2_to_imgmsg(result, "bgr8")
-            # yolo_frame = result
             pub_frame1.publish(yolo_frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -299,7 +283,6 @@ class Garbage_Detector():
             cv2.normalize(hist_gp, hist_gp,0,255,cv2.NORM_MINMAX)
             cv2.normalize(hist_rp, hist_rp,0,255,cv2.NORM_MINMAX)
             track_window2 = (ci2, r2, w2, h2)
-            # print(left2, top2, right2-left2, bottom2-top2)
             cv2.imwrite('bottledetect.jpg', frame[r:r+h, ci:ci+w])
             cv2.imwrite('persondetect.jpg', frame[r2:r2+h2, ci2:ci2+w2])
 
@@ -346,7 +329,6 @@ class Garbage_Detector():
                         img2 = cv2.rectangle(img2, (x2, y2), (x2+w2, y2+h2),(0, 0, 255), 2)
                     cv2.imshow('Tracking',img2)
                     tracking_frame = bridge.cv2_to_imgmsg(img2, "bgr8")
-                    # tracking_frame = img2
                     pub_frame2.publish(tracking_frame)
 
                     # https://www.intelrealsense.com/wp-content/uploads/2020/06/Intel-RealSense-D400-Series-Datasheet-June-2020.pdf
@@ -359,9 +341,8 @@ class Garbage_Detector():
                                 cnt += 1
                     if cnt!=0:
                         worldz = total/cnt
-                        # (x-w//2)
                         # 人にぶつからないように距離を確保するため
-                        if (worldz<1.0) or (worldz>3.0):
+                        if (worldz<0.6) or (worldz>3.0):
                             worldz=0
                     else:
                         worldz = 0
@@ -401,7 +382,7 @@ class Garbage_Detector():
                             worldx = 0.05*(x+w//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                             worldy = 0.05*((img2.shape[0]//2) - (y+h))/u_ud
                             print('x,y,z = ', worldx, worldy, worldz-1.0)
-                            pts.y, pts.z, pts.x = float(worldx), float(worldy), float(worldz)-1.0
+                            pts.y, pts.z, pts.x = float(worldx), float(worldy), float(worldz)-0.6
 
                         else:
                             #human Tracking
@@ -409,7 +390,7 @@ class Garbage_Detector():
                             worldx2 = 0.05*(x2+w2//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                             worldy2 = 0.05*((img2.shape[0]//2) - (y2+h2))/u_ud
                             print('x2,y2,z2 = ', worldx2, worldy2, worldz2-1.0)
-                            pts2.x, pts2.y, pts.z = float(worldx2), float(worldy2), float(worldz2)-1.0
+                            pts2.y, ptsz.z, pts.x = float(worldx2), float(worldy2), float(worldz2)-0.6
 
                     print("track_thing = ", track_thing)
 
@@ -481,10 +462,8 @@ class Garbage_Detector():
 
                     k = cv2.waitKey(1) & 0xff
                     print("emergency_stop", self.emergency_stop)
-                    if (k == 27) or self.emergency_stop==1: # dev
-                    # if emergency_stop: # ops
-                        print("program is stoped!")
-                        # sys.exit(0)
+                    # if (k == 27) or self.emergency_stop==1: # dev
+                    if self.emergency_stop: # ops
                         break
                 else:
                     break
@@ -500,13 +479,11 @@ class Garbage_Detector():
         if data.data==1:
             self.emergency_stop = 1
             rospy.loginfo("emergency_stop is 1")
-        time.sleep(1)
-        # self.emergency_stop = 0
 
     def GarbageInCan(self):
-        # self.garbage_in_can = rospy.Subscriber("garbage_in_can", Int8, self.callback)
-        self.garbage_in_can = 0 # TEST
-        # rospy.spin()
+        self.garbage_in_can = rospy.Subscriber("garbage_in_can", Int8, self.callback)
+        # self.garbage_in_can = 0 # TEST
+        rospy.spin()
     def EmergencyStop(self):
         rospy.loginfo("emergencystop function")
         rospy.Subscriber("emergency_stop", Int8, self.callback)
