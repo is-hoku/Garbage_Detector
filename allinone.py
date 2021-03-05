@@ -228,9 +228,15 @@ class Garbage_Detector():
         fps = "FPS: ??"
         prev_time = timer()
         worldy = 0.0
+        flag = 0
 
         while True:
             # pub_track.publish(0)
+            # flag = 0
+            if self.garbage_in_can==1:
+                # print("ゴミを捨てました")
+                flag = 0
+            pub_flag.publish(flag)
             ret, frames, _ = vid.read()
             frame = frames[0]
             depth_frame = frames[1]
@@ -248,7 +254,7 @@ class Garbage_Detector():
                 curr_fps = 0
             cv2.putText(result, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale=0.50, color=(255, 0, 0), thickness=2)
-            cv2.imshow("result", result)
+            # cv2.imshow("result", result)
             yolo_frame = bridge.cv2_to_imgmsg(result, "bgr8")
             pub_frame1.publish(yolo_frame)
 
@@ -307,6 +313,8 @@ class Garbage_Detector():
             pts2 = Point()
             untrack = 0
             self.emergency_stop = 0
+            # flag = 0
+            # pub_flag.publish(flag)
 
             while(1):
                 ret ,frames, depth = vid.read()
@@ -330,7 +338,7 @@ class Garbage_Detector():
                         img2 = cv2.rectangle(img2, (x2,y2), (x2+w2,y2+h2), 255,2)
                     else:
                         img2 = cv2.rectangle(img2, (x2, y2), (x2+w2, y2+h2),(0, 0, 255), 2)
-                    cv2.imshow('Tracking',img2)
+                    # cv2.imshow('Tracking',img2)
                     tracking_frame = bridge.cv2_to_imgmsg(img2, "bgr8")
                     pub_frame2.publish(tracking_frame)
 
@@ -391,15 +399,18 @@ class Garbage_Detector():
 
                         else:
                             #human Tracking
-                            if worldz==0:
-                                worldx, worldy = 0, 0
-                                pts.x, pts.y, pts.z = 0.0, 0.0, 0.0
+                            # if worldz==0:
+                            #     worldx, worldy = 0, 0
+                            #     pts.x, pts.y, pts.z = 0.0, 0.0, 0.0
                             u_ud = (0.05*1.88*10**(-3))/(3*10**(-6)*worldz2)
                             worldx2 = 0.05*(x2+w2//2 - (img2.shape[1]//2) - 0.3*u_ud)/u_ud
                             worldy2 = 0.05*((img2.shape[0]//2) - (y2+h2))/u_ud
                             print('x2,y2,z2 = ', worldx2, worldy2, worldz2-0.6)
                             pts2.y, pts2.z, pts2.x = -1.0*float(worldx2), float(worldy2), float(worldz2)-0.6
                             # pts.y, pts.z, pts.x = float(0.0), float(worldy), float(1.0)
+                            if worldz==0:
+                                worldx, worldy = 0, 0
+                                pts.x, pts.y, pts.z = 0.0, 0.0, 0.0
 
                     print("track_thing = ", track_thing)
 
@@ -443,15 +454,18 @@ class Garbage_Detector():
                         if untrack>=50:
                             print("枠が画面外で固まった")
                             break
-                    elif (track_thing==1 and self.garbage_in_can==1):
+                    # elif (track_thing==1 and self.garbage_in_can==1):
+                    elif self.garbage_in_can==1:
                         print("ゴミを捨てたため追跡を終えます")
+                        flag = 0
                         break
                     else:
                         untrack = 0
+                    # print('garbage_in_can', self.garbage_in_can)
 
                     # ポイ捨ての基準はbottleを追跡していて，地面から10cmのところまで落ちたか，bottleを見失ったかつ見失う前のフレームでの高さがカメラの10cmより下
                     # print('track_window = ', track_window)
-                    if (((worldy<=-0.15) or (track_window==(0,0,0,0) and (worldy<0.5))) and (not track_thing)):
+                    if (((worldy<=-0.01) or ((track_window==(0,0,0,0) or untrack>=1) and (worldy<0.5))) and (not track_thing)):
                         print("ポイ捨てした！\n")
                         track_thing = 1 #human
 
@@ -470,8 +484,8 @@ class Garbage_Detector():
                         if not (pts2.x==0.0 and pts2.y==0.0 and pts2.z==0.0):
                             pub.publish(tracking_point)
                         flag = 1
-                    else:
-                        flag = 0
+                    # else:
+                    #     flag = 0
 
                     pub_flag.publish(flag)
 
@@ -485,7 +499,7 @@ class Garbage_Detector():
                 else:
                     break
                 # pub_track.publish(1)
-        pub_flag.publish(flag)
+            # pub_flag.publish(flag)
 
         yolo.close_session()
 
@@ -501,7 +515,9 @@ class Garbage_Detector():
     def callback2(self, data):
         if data.data==1:
             self.garbage_in_can = 1
-            rospy.loginfo("garbage_in_can is 1")
+            # rospy.loginfo("garbage_in_can is 1")
+        else:
+            self.garbage_in_can = 0
 
     def GarbageInCan(self):
         self.garbage_in_can = rospy.Subscriber("garbage_in_can", Int8, self.callback2)
